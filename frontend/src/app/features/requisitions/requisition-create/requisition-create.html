@@ -1,0 +1,68 @@
+<div class="page">
+  <h1>New requisition</h1>
+
+  <form [formGroup]="form" (ngSubmit)="submit()" class="card">
+    <div class="form-field">
+      <label for="departmentId">Department</label>
+      <select id="departmentId" formControlName="departmentId">
+        <option [ngValue]="null" disabled>Select a department</option>
+        @for (department of departments(); track department.id) {
+          <option [ngValue]="department.id">{{ department.name }}</option>
+        }
+      </select>
+    </div>
+
+    <div class="form-field">
+      <label for="justification">Justification</label>
+      <textarea id="justification" formControlName="justification" rows="2"></textarea>
+    </div>
+
+    <h2>Line items</h2>
+    <div formArrayName="lineItems">
+      @for (item of lineItems.controls; track $index) {
+        <div class="line-item" [formGroupName]="$index">
+          <div class="form-field">
+            <label [for]="'catalogItem-' + $index">Catalog item (optional)</label>
+            <select [id]="'catalogItem-' + $index" (change)="onCatalogItemSelected($index, $any($event.target).value)">
+              <option value="">Custom item</option>
+              @for (catalogItem of catalogItems(); track catalogItem.id) {
+                <option [value]="catalogItem.id">{{ catalogItem.name }} ({{ catalogItem.sku }})</option>
+              }
+            </select>
+          </div>
+          <div class="form-field">
+            <label [for]="'description-' + $index">Description</label>
+            <input [id]="'description-' + $index" type="text" formControlName="description" />
+          </div>
+          <div class="form-field qty">
+            <label [for]="'quantity-' + $index">Qty</label>
+            <input [id]="'quantity-' + $index" type="number" formControlName="quantity" min="1" />
+          </div>
+          <div class="form-field price">
+            <label [for]="'unitPrice-' + $index">Unit price</label>
+            <input [id]="'unitPrice-' + $index" type="number" formControlName="unitPrice" min="0.01" step="0.01" />
+          </div>
+          <button
+            type="button"
+            class="btn btn-secondary"
+            (click)="removeLineItem($index)"
+            [disabled]="lineItems.length === 1"
+          >
+            Remove
+          </button>
+        </div>
+      }
+    </div>
+    <button type="button" class="btn btn-secondary" (click)="addLineItem()">Add line item</button>
+
+    @if (errorMessage()) {
+      <p class="error-text">{{ errorMessage() }}</p>
+    }
+
+    <div class="actions">
+      <button class="btn" type="submit" [disabled]="submitting()">
+        {{ submitting() ? 'Saving…' : 'Save as draft' }}
+      </button>
+    </div>
+  </form>
+</div>

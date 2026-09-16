@@ -1,0 +1,13 @@
+spring:
+  jpa:
+    show-sql: false
+
+logging:
+  level:
+    root: INFO
+    com.enterpriseapp.procureflow: INFO
+
+# JWT_SECRET, DB_URL, DB_USERNAME, DB_PASSWORD and CORS_ALLOWED_ORIGINS
+# MUST be supplied via environment variables / secret manager in production.
+# There is no fallback default for app.security.jwt.secret in this profile;
+# startup fails fast if it is missing (see SecurityConfig).

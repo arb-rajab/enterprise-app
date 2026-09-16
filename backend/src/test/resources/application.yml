@@ -1,0 +1,10 @@
+app:
+  security:
+    jwt:
+      secret: integration-test-signing-secret-at-least-32-bytes-long
+  cors:
+    allowed-origins: http://localhost:4200
+
+logging:
+  level:
+    org.testcontainers: INFO

@@ -1,0 +1,50 @@
+<div class="page">
+  <h1>Departments</h1>
+
+  <div class="card">
+    @if (loading()) {
+      <p class="muted">Loading…</p>
+    } @else {
+      <table>
+        <thead>
+          <tr>
+            <th>Code</th>
+            <th>Name</th>
+            <th>Cost center</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (department of departments(); track department.id) {
+            <tr>
+              <td>{{ department.code }}</td>
+              <td>{{ department.name }}</td>
+              <td>{{ department.costCenter || '—' }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    }
+  </div>
+
+  <div class="card">
+    <h2>Add department</h2>
+    <form [formGroup]="form" (ngSubmit)="submit()">
+      <div class="form-field">
+        <label for="code">Code</label>
+        <input id="code" type="text" formControlName="code" />
+      </div>
+      <div class="form-field">
+        <label for="name">Name</label>
+        <input id="name" type="text" formControlName="name" />
+      </div>
+      <div class="form-field">
+        <label for="costCenter">Cost center</label>
+        <input id="costCenter" type="text" formControlName="costCenter" />
+      </div>
+      @if (errorMessage()) {
+        <p class="error-text">{{ errorMessage() }}</p>
+      }
+      <button class="btn" type="submit">Add department</button>
+    </form>
+  </div>
+</div>

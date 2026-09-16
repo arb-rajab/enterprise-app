@@ -1,0 +1,69 @@
+<div class="page">
+  <h1>Invoices</h1>
+
+  <div class="card">
+    @if (loading()) {
+      <p class="muted">Loading…</p>
+    } @else {
+      <table>
+        <thead>
+          <tr>
+            <th>Invoice #</th>
+            <th>PO</th>
+            <th>Amount</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (invoice of invoices(); track invoice.id) {
+            <tr>
+              <td>{{ invoice.invoiceNumber }}</td>
+              <td>{{ invoice.poNumber }}</td>
+              <td>{{ invoice.amount | number: '1.2-2' }}</td>
+              <td><span [class]="statusBadgeClass(invoice.status)">{{ invoice.status }}</span></td>
+              <td>
+                @if (auth.hasAnyRole('ROLE_ADMIN', 'ROLE_FINANCE_APPROVER') && invoice.status === 'RECEIVED') {
+                  <button class="btn btn-secondary" (click)="approve(invoice.id)">Approve</button>
+                  <button class="btn btn-danger" (click)="dispute(invoice.id)">Dispute</button>
+                }
+                @if (auth.hasAnyRole('ROLE_ADMIN', 'ROLE_FINANCE_APPROVER') && invoice.status === 'APPROVED') {
+                  <button class="btn btn-secondary" (click)="pay(invoice.id)">Mark paid</button>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    }
+  </div>
+
+  @if (auth.hasAnyRole('ROLE_ADMIN', 'ROLE_PROCUREMENT_OFFICER')) {
+    <div class="card">
+      <h2>Record invoice</h2>
+      <form [formGroup]="form" (ngSubmit)="submit()">
+        <div class="form-field">
+          <label for="purchaseOrderId">Purchase order</label>
+          <select id="purchaseOrderId" formControlName="purchaseOrderId">
+            <option [ngValue]="null" disabled>Select a purchase order</option>
+            @for (order of purchaseOrders(); track order.id) {
+              <option [ngValue]="order.id">{{ order.poNumber }} — {{ order.vendorName }}</option>
+            }
+          </select>
+        </div>
+        <div class="form-field">
+          <label for="invoiceNumber">Invoice number</label>
+          <input id="invoiceNumber" type="text" formControlName="invoiceNumber" />
+        </div>
+        <div class="form-field">
+          <label for="amount">Amount</label>
+          <input id="amount" type="number" step="0.01" formControlName="amount" />
+        </div>
+        @if (errorMessage()) {
+          <p class="error-text">{{ errorMessage() }}</p>
+        }
+        <button class="btn" type="submit">Record invoice</button>
+      </form>
+    </div>
+  }
+</div>

@@ -1,0 +1,12 @@
+# Risk Register
+
+| # | Risk | Likelihood | Impact | Mitigation / disposition |
+|---|------|-----------|--------|---------------------------|
+| R1 | JWT cannot be revoked before expiry (stolen token stays valid) | Low (demo, no real users) | Medium | Short default TTL (30 min); documented in `06-security.md`/ADR-0002; refresh-token rotation and/or a deny-list are backlog items, not silently ignored |
+| R2 | Read endpoints (`GET /requisitions`, etc.) are not row-level scoped — any authenticated user can view all requisitions, not just their own/their department's | Medium (will be hit by any reviewer poking at the API) | Medium | Documented explicitly in `06-security.md` as an accepted gap, not a hidden one; backlog item to add scoping |
+| R3 | Purchase order number generation (`COUNT(*) + 1`) has a race condition under concurrent creation | Low (single-actor demo usage) | Low (would surface as a 500 on unique-constraint violation, not data corruption) | Documented in `08-ops.md`; fix is a DB sequence, tracked in backlog |
+| R4 | Testcontainers-based integration tests and Docker image builds could not be executed inside the sandbox this project was built in (registry access blocked by the sandbox's network policy) | N/A (environmental, not code) | Medium if it turns out CI also fails for a different reason | CI (`.github/workflows/ci.yml`) is the actual verification; its real status is recorded in `12-session-handoff.md`, not assumed |
+| R5 | Dependabot alert status for this repository could not be independently enumerated by the tooling available in this session | N/A | Unknown until verified | Stated explicitly as unverified in `12-session-handoff.md` rather than reported as "no vulnerabilities found" |
+| R6 | No rate limiting on `/api/v1/auth/**` — brute-force login attempts are not throttled | Low (demo has no real attacker) | Medium if ever exposed publicly with real accounts | Backlog item; explicitly out of scope for this pass |
+| R7 | Seed/demo credentials (`Password123!`) are identical across all demo accounts and documented in the README/login screen | High (by design) | None for this repo's purpose — but this pattern must never be copied into a real product's seed data | Called out explicitly wherever it appears so it can't be mistaken for a real security posture |
+| R8 | Single author, no code review from a second person | Certain | Low-Medium | This documentation set exists partly to compensate — every non-trivial decision has a written, falsifiable rationale (ADRs) rather than relying on institutional memory |

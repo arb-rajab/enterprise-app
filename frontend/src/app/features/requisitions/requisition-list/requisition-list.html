@@ -1,0 +1,41 @@
+<div class="page">
+  <div class="toolbar">
+    <h1>Requisitions</h1>
+    <a class="btn" routerLink="/requisitions/new">New requisition</a>
+  </div>
+
+  @if (loading()) {
+    <p class="muted">Loading…</p>
+  } @else {
+    <div class="card">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Requester</th>
+            <th>Justification</th>
+            <th>Amount</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (requisition of myRequisitions(); track requisition.id) {
+            <tr>
+              <td>#{{ requisition.id }}</td>
+              <td>{{ requisition.requesterName }}</td>
+              <td>{{ requisition.justification }}</td>
+              <td>{{ requisition.totalAmount | number: '1.2-2' }}</td>
+              <td><span [class]="statusBadgeClass(requisition.status)">{{ requisition.status }}</span></td>
+              <td><a [routerLink]="['/requisitions', requisition.id]">View</a></td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="6" class="muted">You have not created any requisitions yet.</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>

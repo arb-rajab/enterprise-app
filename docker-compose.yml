@@ -1,0 +1,43 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${DB_NAME:-procureflow}
+      POSTGRES_USER: ${DB_USERNAME:-procureflow}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-procureflow}
+    ports:
+      - '5432:5432'
+    volumes:
+      - procureflow-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${DB_USERNAME:-procureflow}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      DB_URL: jdbc:postgresql://postgres:5432/${DB_NAME:-procureflow}
+      DB_USERNAME: ${DB_USERNAME:-procureflow}
+      DB_PASSWORD: ${DB_PASSWORD:-procureflow}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in your .env file - see .env.example}
+      CORS_ALLOWED_ORIGINS: http://localhost:8081
+    ports:
+      - '8080:8080'
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - '8081:8080'
+    depends_on:
+      - backend
+
+volumes:
+  procureflow-postgres-data:

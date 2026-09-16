@@ -1,0 +1,45 @@
+<div class="page">
+  <h1>Welcome, {{ auth.currentUser()?.firstName }}</h1>
+  <p class="muted">Roles: {{ auth.currentUser()?.roles?.join(', ') }}</p>
+
+  <div class="card">
+    <h2>Quick actions</h2>
+    <div class="actions">
+      <a class="btn" routerLink="/requisitions/new">New requisition</a>
+      <a class="btn btn-secondary" routerLink="/requisitions">My requisitions</a>
+      <a class="btn btn-secondary" routerLink="/catalog">Browse catalog</a>
+    </div>
+  </div>
+
+  @if (auth.hasAnyRole('ROLE_DEPARTMENT_MANAGER', 'ROLE_PROCUREMENT_OFFICER', 'ROLE_FINANCE_APPROVER')) {
+    <div class="card">
+      <h2>Awaiting your approval</h2>
+      @if (loading()) {
+        <p class="muted">Loading…</p>
+      } @else if (pendingApprovals().length === 0) {
+        <p class="muted">Nothing pending right now.</p>
+      } @else {
+        <table>
+          <thead>
+            <tr>
+              <th>Requester</th>
+              <th>Justification</th>
+              <th>Amount</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (requisition of pendingApprovals(); track requisition.id) {
+              <tr>
+                <td>{{ requisition.requesterName }}</td>
+                <td>{{ requisition.justification }}</td>
+                <td>{{ requisition.totalAmount | number: '1.2-2' }}</td>
+                <td><a [routerLink]="['/requisitions', requisition.id]">Review</a></td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+    </div>
+  }
+</div>

@@ -1,0 +1,24 @@
+@if (auth.isAuthenticated()) {
+  <nav class="nav">
+    <div class="nav-brand">ProcureFlow</div>
+    <div class="nav-links">
+      <a routerLink="/dashboard" routerLinkActive="active">Dashboard</a>
+      <a routerLink="/requisitions" routerLinkActive="active">Requisitions</a>
+      <a routerLink="/catalog" routerLinkActive="active">Catalog</a>
+      @if (auth.hasAnyRole('ROLE_ADMIN', 'ROLE_PROCUREMENT_OFFICER')) {
+        <a routerLink="/vendors" routerLinkActive="active">Vendors</a>
+        <a routerLink="/purchase-orders" routerLinkActive="active">Purchase Orders</a>
+      }
+      @if (auth.hasAnyRole('ROLE_ADMIN', 'ROLE_PROCUREMENT_OFFICER', 'ROLE_FINANCE_APPROVER')) {
+        <a routerLink="/invoices" routerLinkActive="active">Invoices</a>
+      }
+      @if (auth.hasAnyRole('ROLE_ADMIN')) {
+        <a routerLink="/departments" routerLinkActive="active">Departments</a>
+      }
+    </div>
+    <div class="nav-user">
+      <span class="muted">{{ auth.currentUser()?.firstName }} {{ auth.currentUser()?.lastName }}</span>
+      <button class="btn btn-secondary" type="button" (click)="logout()">Log out</button>
+    </div>
+  </nav>
+}

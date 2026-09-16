@@ -1,0 +1,32 @@
+<div class="page">
+  <h1>Catalog</h1>
+
+  <div class="card">
+    @if (loading()) {
+      <p class="muted">Loading…</p>
+    } @else {
+      <table>
+        <thead>
+          <tr>
+            <th>SKU</th>
+            <th>Name</th>
+            <th>Category</th>
+            <th>Unit price</th>
+            <th>Vendor</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of items(); track item.id) {
+            <tr>
+              <td>{{ item.sku }}</td>
+              <td>{{ item.name }}</td>
+              <td>{{ item.category || '—' }}</td>
+              <td>{{ item.unitPrice | number: '1.2-2' }}</td>
+              <td>{{ item.vendorName }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    }
+  </div>
+</div>

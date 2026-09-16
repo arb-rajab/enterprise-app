@@ -1,0 +1,39 @@
+<div class="page">
+  <h1>Purchase orders</h1>
+
+  <div class="card">
+    @if (loading()) {
+      <p class="muted">Loading…</p>
+    } @else {
+      <table>
+        <thead>
+          <tr>
+            <th>PO number</th>
+            <th>Vendor</th>
+            <th>Amount</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (order of orders(); track order.id) {
+            <tr>
+              <td>{{ order.poNumber }}</td>
+              <td>{{ order.vendorName }}</td>
+              <td>{{ order.totalAmount | number: '1.2-2' }}</td>
+              <td><span class="badge badge-primary">{{ order.status }}</span></td>
+              <td>
+                @if (order.status === 'ISSUED') {
+                  <button class="btn btn-secondary" (click)="acknowledge(order.id)">Acknowledge</button>
+                }
+                @if (order.status === 'ACKNOWLEDGED') {
+                  <button class="btn btn-secondary" (click)="fulfill(order.id)">Mark fulfilled</button>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    }
+  </div>
+</div>

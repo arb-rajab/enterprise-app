@@ -1,0 +1,245 @@
+package com.enterpriseapp.procureflow.requisition;
+
+import com.enterpriseapp.procureflow.audit.AuditService;
+import com.enterpriseapp.procureflow.catalog.CatalogItem;
+import com.enterpriseapp.procureflow.catalog.CatalogItemService;
+import com.enterpriseapp.procureflow.common.exception.InvalidStateTransitionException;
+import com.enterpriseapp.procureflow.common.exception.ResourceNotFoundException;
+import com.enterpriseapp.procureflow.department.Department;
+import com.enterpriseapp.procureflow.department.DepartmentService;
+import com.enterpriseapp.procureflow.requisition.dto.ApprovalDecisionRequest;
+import com.enterpriseapp.procureflow.requisition.dto.CreateRequisitionRequest;
+import com.enterpriseapp.procureflow.requisition.dto.LineItemRequest;
+import com.enterpriseapp.procureflow.user.RoleName;
+import com.enterpriseapp.procureflow.user.User;
+import java.time.Instant;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+@RequiredArgsConstructor
+@Transactional(readOnly = true)
+public class RequisitionService {
+
+  private final PurchaseRequisitionRepository requisitionRepository;
+  private final ApprovalStepRepository approvalStepRepository;
+  private final DepartmentService departmentService;
+  private final CatalogItemService catalogItemService;
+  private final ApprovalWorkflowPolicy approvalWorkflowPolicy;
+  private final AuditService auditService;
+
+  public List<PurchaseRequisition> findAll() {
+    return requisitionRepository.findAll();
+  }
+
+  public PurchaseRequisition findById(Long id) {
+    return requisitionRepository
+        .findById(id)
+        .orElseThrow(() -> ResourceNotFoundException.of("PurchaseRequisition", id));
+  }
+
+  /** Requisitions with a step pending on any of the caller's roles. */
+  public List<PurchaseRequisition> findPendingApprovalFor(Set<RoleName> roles) {
+    return approvalStepRepository
+        .findByApproverRoleInAndStatus(roles, ApprovalStatus.PENDING)
+        .stream()
+        .map(ApprovalStep::getRequisition)
+        .filter(requisition -> isActionable(requisition, roles))
+        .distinct()
+        .toList();
+  }
+
+  private boolean isActionable(PurchaseRequisition requisition, Set<RoleName> roles) {
+    return nextPendingStep(requisition)
+        .map(step -> roles.contains(step.getApproverRole()))
+        .orElse(false);
+  }
+
+  @Transactional
+  public PurchaseRequisition create(CreateRequisitionRequest request, User requester) {
+    Department department = departmentService.findById(request.departmentId());
+    PurchaseRequisition requisition =
+        PurchaseRequisition.builder()
+            .requester(requester)
+            .department(department)
+            .justification(request.justification())
+            .status(RequisitionStatus.DRAFT)
+            .build();
+
+    for (LineItemRequest lineItemRequest : request.lineItems()) {
+      requisition.getLineItems().add(buildLineItem(requisition, lineItemRequest));
+    }
+    requisition.recalculateTotal();
+
+    PurchaseRequisition saved = requisitionRepository.save(requisition);
+    auditService.record(
+        "PurchaseRequisition",
+        saved.getId(),
+        "CREATED",
+        requester.getEmail(),
+        "Draft requisition created");
+    return saved;
+  }
+
+  private RequisitionLineItem buildLineItem(
+      PurchaseRequisition requisition, LineItemRequest request) {
+    CatalogItem catalogItem =
+        request.catalogItemId() != null
+            ? catalogItemService.findById(request.catalogItemId())
+            : null;
+    RequisitionLineItem lineItem =
+        RequisitionLineItem.builder()
+            .requisition(requisition)
+            .catalogItem(catalogItem)
+            .description(request.description())
+            .quantity(request.quantity())
+            .unitPrice(request.unitPrice())
+            .build();
+    lineItem.recalculateLineTotal();
+    return lineItem;
+  }
+
+  @Transactional
+  public PurchaseRequisition submit(Long id, User actor) {
+    PurchaseRequisition requisition = findById(id);
+    requireOwner(requisition, actor);
+    if (requisition.getStatus() != RequisitionStatus.DRAFT) {
+      throw new InvalidStateTransitionException(
+          "Requisition " + id + " cannot be submitted from status " + requisition.getStatus());
+    }
+    if (requisition.getLineItems().isEmpty()) {
+      throw new InvalidStateTransitionException(
+          "A requisition must have at least one line item to submit");
+    }
+
+    List<RoleName> chain =
+        approvalWorkflowPolicy.resolveApprovalChain(requisition.getTotalAmount());
+    int order = 1;
+    for (RoleName role : chain) {
+      requisition
+          .getApprovalSteps()
+          .add(
+              ApprovalStep.builder()
+                  .requisition(requisition)
+                  .stepOrder(order++)
+                  .approverRole(role)
+                  .status(ApprovalStatus.PENDING)
+                  .build());
+    }
+    requisition.setStatus(RequisitionStatus.SUBMITTED);
+    auditService.record(
+        "PurchaseRequisition",
+        id,
+        "SUBMITTED",
+        actor.getEmail(),
+        "Routed through " + chain.size() + " approval step(s)");
+    return requisition;
+  }
+
+  @Transactional
+  public PurchaseRequisition decide(Long id, ApprovalDecisionRequest decision, User approver) {
+    PurchaseRequisition requisition = findById(id);
+    if (requisition.getStatus() != RequisitionStatus.SUBMITTED) {
+      throw new InvalidStateTransitionException(
+          "Requisition "
+              + id
+              + " is not awaiting approval (status: "
+              + requisition.getStatus()
+              + ")");
+    }
+
+    ApprovalStep step =
+        nextPendingStep(requisition)
+            .orElseThrow(
+                () ->
+                    new InvalidStateTransitionException(
+                        "Requisition " + id + " has no pending approval step"));
+
+    if (!approver.getRoles().contains(step.getApproverRole())) {
+      throw new InvalidStateTransitionException(
+          "Requisition "
+              + id
+              + " is currently awaiting approval from role "
+              + step.getApproverRole());
+    }
+
+    step.setDecidedBy(approver);
+    step.setComments(decision.comments());
+    step.setDecidedAt(Instant.now());
+
+    if (Boolean.TRUE.equals(decision.approve())) {
+      step.setStatus(ApprovalStatus.APPROVED);
+      auditService.record(
+          "PurchaseRequisition",
+          id,
+          "STEP_APPROVED",
+          approver.getEmail(),
+          "Step " + step.getStepOrder() + " (" + step.getApproverRole() + ") approved");
+      if (nextPendingStep(requisition).isEmpty()) {
+        requisition.setStatus(RequisitionStatus.APPROVED);
+        auditService.record(
+            "PurchaseRequisition",
+            id,
+            "APPROVED",
+            approver.getEmail(),
+            "All approval steps complete");
+      }
+    } else {
+      step.setStatus(ApprovalStatus.REJECTED);
+      requisition.setStatus(RequisitionStatus.REJECTED);
+      auditService.record(
+          "PurchaseRequisition",
+          id,
+          "REJECTED",
+          approver.getEmail(),
+          "Step " + step.getStepOrder() + " (" + step.getApproverRole() + ") rejected");
+    }
+    return requisition;
+  }
+
+  @Transactional
+  public PurchaseRequisition cancel(Long id, User actor) {
+    PurchaseRequisition requisition = findById(id);
+    requireOwner(requisition, actor);
+    if (requisition.getStatus() == RequisitionStatus.CONVERTED) {
+      throw new InvalidStateTransitionException("A converted requisition cannot be cancelled");
+    }
+    requisition.setStatus(RequisitionStatus.CANCELLED);
+    auditService.record("PurchaseRequisition", id, "CANCELLED", actor.getEmail(), null);
+    return requisition;
+  }
+
+  @Transactional
+  public void markConverted(Long id) {
+    PurchaseRequisition requisition = findById(id);
+    if (requisition.getStatus() != RequisitionStatus.APPROVED) {
+      throw new InvalidStateTransitionException(
+          "Requisition "
+              + id
+              + " must be APPROVED before it can be converted (status: "
+              + requisition.getStatus()
+              + ")");
+    }
+    requisition.setStatus(RequisitionStatus.CONVERTED);
+  }
+
+  private void requireOwner(PurchaseRequisition requisition, User actor) {
+    boolean isOwner = requisition.getRequester().getId().equals(actor.getId());
+    boolean isAdmin = actor.getRoles().contains(RoleName.ROLE_ADMIN);
+    if (!isOwner && !isAdmin) {
+      throw new InvalidStateTransitionException(
+          "Only the requester or an administrator can perform this action");
+    }
+  }
+
+  static Optional<ApprovalStep> nextPendingStep(PurchaseRequisition requisition) {
+    return requisition.getApprovalSteps().stream()
+        .filter(step -> step.getStatus() == ApprovalStatus.PENDING)
+        .min(Comparator.comparingInt(ApprovalStep::getStepOrder));
+  }
+}

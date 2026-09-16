@@ -1,0 +1,64 @@
+<div class="page">
+  <h1>Vendors</h1>
+
+  <div class="card">
+    @if (loading()) {
+      <p class="muted">Loading…</p>
+    } @else {
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Contact</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (vendor of vendors(); track vendor.id) {
+            <tr>
+              <td>{{ vendor.name }}</td>
+              <td>{{ vendor.contactEmail }}</td>
+              <td><span [class]="statusBadgeClass(vendor.status)">{{ vendor.status }}</span></td>
+              <td>
+                @if (vendor.status === 'PENDING_APPROVAL') {
+                  <button class="btn btn-secondary" (click)="approve(vendor.id)">Approve</button>
+                }
+                @if (vendor.status === 'ACTIVE') {
+                  <button class="btn btn-secondary" (click)="deactivate(vendor.id)">Deactivate</button>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    }
+  </div>
+
+  <div class="card">
+    <h2>Add vendor</h2>
+    <form [formGroup]="form" (ngSubmit)="submit()">
+      <div class="form-field">
+        <label for="name">Name</label>
+        <input id="name" type="text" formControlName="name" />
+      </div>
+      <div class="form-field">
+        <label for="contactEmail">Contact email</label>
+        <input id="contactEmail" type="email" formControlName="contactEmail" />
+      </div>
+      <div class="form-field">
+        <label for="phone">Phone</label>
+        <input id="phone" type="text" formControlName="phone" />
+      </div>
+      <div class="form-field">
+        <label for="address">Address</label>
+        <input id="address" type="text" formControlName="address" />
+      </div>
+      <div class="form-field">
+        <label for="taxId">Tax ID</label>
+        <input id="taxId" type="text" formControlName="taxId" />
+      </div>
+      <button class="btn" type="submit">Add vendor</button>
+    </form>
+  </div>
+</div>

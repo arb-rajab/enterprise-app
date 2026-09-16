@@ -1,0 +1,94 @@
+<div class="page">
+  @if (loading()) {
+    <p class="muted">Loading…</p>
+  } @else if (!requisition()) {
+    <p class="error-text">Requisition not found.</p>
+  } @else {
+    <div class="toolbar">
+      <h1>Requisition #{{ requisition()!.id }}</h1>
+      <span class="badge badge-primary">{{ requisition()!.status }}</span>
+    </div>
+
+    <div class="card">
+      <p><strong>Requester:</strong> {{ requisition()!.requesterName }}</p>
+      <p><strong>Justification:</strong> {{ requisition()!.justification || '—' }}</p>
+      <p><strong>Total:</strong> {{ requisition()!.totalAmount | number: '1.2-2' }}</p>
+
+      <h2>Line items</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Description</th>
+            <th>Qty</th>
+            <th>Unit price</th>
+            <th>Line total</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of requisition()!.lineItems; track item.id) {
+            <tr>
+              <td>{{ item.description }}</td>
+              <td>{{ item.quantity }}</td>
+              <td>{{ item.unitPrice | number: '1.2-2' }}</td>
+              <td>{{ item.lineTotal | number: '1.2-2' }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    @if (requisition()!.approvalSteps.length > 0) {
+      <div class="card">
+        <h2>Approval chain</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Step</th>
+              <th>Role</th>
+              <th>Status</th>
+              <th>Comments</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (step of requisition()!.approvalSteps; track step.id) {
+              <tr>
+                <td>{{ step.stepOrder }}</td>
+                <td>{{ step.approverRole }}</td>
+                <td>{{ step.status }}</td>
+                <td>{{ step.comments || '—' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    @if (errorMessage()) {
+      <p class="error-text">{{ errorMessage() }}</p>
+    }
+
+    <div class="card actions">
+      @if (canSubmit) {
+        <button class="btn" [disabled]="working()" (click)="submit()">Submit for approval</button>
+      }
+      @if (canDecide) {
+        <button class="btn" [disabled]="working()" (click)="decide(true)">Approve</button>
+        <button class="btn btn-danger" [disabled]="working()" (click)="decide(false)">Reject</button>
+      }
+      @if (canCancel) {
+        <button class="btn btn-secondary" [disabled]="working()" (click)="cancel()">Cancel</button>
+      }
+      @if (canConvert) {
+        <form [formGroup]="convertForm" (ngSubmit)="convertToPurchaseOrder()" class="convert-form">
+          <select formControlName="vendorId">
+            <option [ngValue]="null" disabled>Select vendor</option>
+            @for (vendor of vendors(); track vendor.id) {
+              <option [ngValue]="vendor.id">{{ vendor.name }}</option>
+            }
+          </select>
+          <button class="btn" type="submit" [disabled]="working()">Convert to purchase order</button>
+        </form>
+      }
+    </div>
+  }
+</div>

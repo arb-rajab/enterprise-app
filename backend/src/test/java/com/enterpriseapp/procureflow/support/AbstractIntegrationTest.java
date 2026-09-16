@@ -21,8 +21,8 @@ import org.testcontainers.utility.DockerImageName;
  * between each IT subclass. Spring's test-context cache then keeps reusing the first subclass's
  * DataSource pointing at the now-dead old port, so every IT class after the first one fails with
  * connection-refused/timeout errors. Starting it once, here, and letting the JVM (and
- * Testcontainers' Ryuk reaper) tear it down at shutdown keeps one Postgres instance - and one
- * port - alive for every IT class in the run.
+ * Testcontainers' Ryuk reaper) tear it down at shutdown keeps one Postgres instance - and one port
+ * - alive for every IT class in the run.
  */
 @Tag("integration")
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)

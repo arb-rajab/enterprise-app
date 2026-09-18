@@ -27,13 +27,17 @@ public class PurchaseOrderController {
   private final UserService userService;
 
   @GetMapping("/purchase-orders")
-  public List<PurchaseOrderResponse> findAll() {
-    return purchaseOrderService.findAll().stream().map(PurchaseOrderResponse::from).toList();
+  public List<PurchaseOrderResponse> findAll(Authentication authentication) {
+    User viewer = userService.findByEmail(authentication.getName());
+    return purchaseOrderService.findVisibleTo(viewer).stream()
+        .map(PurchaseOrderResponse::from)
+        .toList();
   }
 
   @GetMapping("/purchase-orders/{id}")
-  public PurchaseOrderResponse findById(@PathVariable Long id) {
-    return PurchaseOrderResponse.from(purchaseOrderService.findById(id));
+  public PurchaseOrderResponse findById(@PathVariable Long id, Authentication authentication) {
+    User viewer = userService.findByEmail(authentication.getName());
+    return PurchaseOrderResponse.from(purchaseOrderService.findVisibleById(id, viewer));
   }
 
   @PostMapping("/requisitions/{requisitionId}/convert-to-po")

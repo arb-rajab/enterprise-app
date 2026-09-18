@@ -13,6 +13,7 @@ describe('Auth', () => {
     accessToken: 'a-token',
     tokenType: 'Bearer',
     expiresInSeconds: 1800,
+    refreshToken: 'a-refresh-token',
     user: {
       id: 1,
       email: 'employee@procureflow.test',
@@ -50,7 +51,7 @@ describe('Auth', () => {
     expect(localStorage.getItem('procureflow.accessToken')).toBe('a-token');
   });
 
-  it('clears the session on logout', () => {
+  it('clears the session on logout and asks the server to revoke the refresh token', () => {
     service.login({ email: sampleResponse.user.email, password: 'Password123!' }).subscribe();
     httpMock.expectOne('/api/v1/auth/login').flush(sampleResponse);
 
@@ -58,6 +59,11 @@ describe('Auth', () => {
 
     expect(service.isAuthenticated()).toBeFalse();
     expect(localStorage.getItem('procureflow.accessToken')).toBeNull();
+    expect(localStorage.getItem('procureflow.refreshToken')).toBeNull();
+
+    const revokeReq = httpMock.expectOne('/api/v1/auth/logout');
+    expect(revokeReq.request.body).toEqual({ refreshToken: 'a-refresh-token' });
+    revokeReq.flush(null);
   });
 
   it('hasAnyRole checks the current user roles', () => {

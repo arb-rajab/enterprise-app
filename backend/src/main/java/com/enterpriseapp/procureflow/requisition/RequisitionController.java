@@ -31,8 +31,10 @@ public class RequisitionController {
   private final UserService userService;
 
   @GetMapping
-  public List<RequisitionResponse> findAll() {
-    return requisitionService.findAll().stream().map(RequisitionResponse::from).toList();
+  public List<RequisitionResponse> findAll(Authentication authentication) {
+    return requisitionService.findVisibleTo(currentUser(authentication)).stream()
+        .map(RequisitionResponse::from)
+        .toList();
   }
 
   @GetMapping("/pending-my-approval")
@@ -44,8 +46,9 @@ public class RequisitionController {
   }
 
   @GetMapping("/{id}")
-  public RequisitionResponse findById(@PathVariable Long id) {
-    return RequisitionResponse.from(requisitionService.findById(id));
+  public RequisitionResponse findById(@PathVariable Long id, Authentication authentication) {
+    return RequisitionResponse.from(
+        requisitionService.findVisibleById(id, currentUser(authentication)));
   }
 
   @PostMapping

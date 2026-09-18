@@ -1,9 +1,14 @@
 package com.enterpriseapp.procureflow.user.dto;
 
 public record AuthResponse(
-    String accessToken, String tokenType, long expiresInSeconds, UserSummary user) {
+    String accessToken,
+    String tokenType,
+    long expiresInSeconds,
+    String refreshToken,
+    UserSummary user) {
 
-  public static AuthResponse bearer(String token, long expiresInSeconds, UserSummary user) {
-    return new AuthResponse(token, "Bearer", expiresInSeconds, user);
+  public static AuthResponse bearer(
+      String accessToken, long expiresInSeconds, String refreshToken, UserSummary user) {
+    return new AuthResponse(accessToken, "Bearer", expiresInSeconds, refreshToken, user);
   }
 }

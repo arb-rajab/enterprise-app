@@ -4,15 +4,26 @@
 
 ### Unit tests (JUnit 5 + Mockito + AssertJ), run by `mvn test`
 No database, no Spring context — pure business logic against mocked repositories/collaborators.
-20 tests across:
+37 tests across:
 
 - `ApprovalWorkflowPolicyTest` — every threshold boundary (999.99 / 1000.00 / 1000.01 / 10000.00
   / 10000.01) resolves to the exact expected approval chain.
 - `RequisitionServiceTest` — total computation from line items, approval-chain construction on
   submit, sequential-step enforcement (wrong role can't decide, only the current pending step is
-  actionable), owner-only submit/cancel, approve-to-completion and reject-halts-workflow paths.
+  actionable), owner-only submit/cancel, approve-to-completion and reject-halts-workflow paths,
+  and read-scoping (`findVisibleTo`/`findVisibleById`): an employee sees only their own
+  requisitions, a department manager sees their department's, a procurement officer sees every
+  one, and a stranger outside both is denied with `AccessDeniedException` (see
+  `adr/0005-row-level-read-scoping.md`).
+- `PurchaseOrderServiceTest` — the same read-scoping rule applied to purchase orders via the
+  requisition they were converted from (requester, department manager, org-wide roles, and a
+  denied stranger).
 - `JwtServiceTest` — token round-trips its claims, a token signed with a different secret is
   rejected, missing/too-short secrets fail fast at construction.
+- `RefreshTokenServiceTest` — issuing a token persists only its SHA-256 hash (never the raw
+  value); rotation revokes the presented token and returns a distinct new one; rotating an
+  unknown, expired, or already-revoked token is rejected; revoking an unknown token is a no-op
+  (see `adr/0006-jwt-refresh-token-rotation-and-revocation.md`).
 - `DepartmentServiceTest`, `VendorServiceTest` — duplicate-code rejection, state-transition
   guards (e.g. can't approve a vendor that isn't `PENDING_APPROVAL`).
 
@@ -22,13 +33,23 @@ actual Flyway migrations/seed data — not mocks, not H2. `AbstractIntegrationTe
 shared `@Testcontainers` Postgres container and wires its JDBC URL into the Spring context via
 `@DynamicPropertySource`.
 
-- `AuthControllerIT` — register → login round trip issues a working JWT; duplicate email is
-  rejected (409); wrong password is rejected (401).
+- `AuthControllerIT` — register → login round trip issues a working JWT and refresh token;
+  duplicate email is rejected (409); wrong password is rejected (401); a refresh token rotates
+  into a new pair and the rotated-away token can't be reused (401 on replay); logout revokes a
+  refresh token so it's rejected afterward; an unknown refresh token is rejected.
 - `RequisitionWorkflowIT` — the full lifecycle against the seeded demo accounts: employee creates
   a multi-line-item requisition, submits it, the department manager approves, the procurement
   officer approves (both required at this amount — see ADR-0004), the requisition reaches
   `APPROVED`, gets converted to a Purchase Order, and an unrelated role (an employee approving
   their own requisition) is correctly rejected with 409.
+- `RequisitionReadScopingIT` — end-to-end proof of the row-level read scoping fix (ADR-0005)
+  against real JWTs: the requester, their department manager, and procurement can all fetch and
+  list a requisition; a freshly-registered outsider in a different department gets 403 on the
+  detail endpoint and never sees it in the list endpoint.
+- `PurchaseOrderConcurrencyIT` — regression test for the PO-number race (see below): converts 8
+  independently-approved requisitions to purchase orders from concurrent threads released
+  simultaneously via a `CyclicBarrier`, and asserts every `poNumber` is unique and every request
+  succeeded.
 
 **Convention:** unit tests are named `*Test.java` (Surefire, no external dependencies, runs on
 every `mvn test`); integration tests are named `*IT.java` (Failsafe, bound to the
@@ -41,7 +62,7 @@ pulls Testcontainers needs (`docker pull postgres:16-alpine` returns `403`/`429`
 registry tried: Docker Hub, an ECR public mirror). They **are** exercised by
 `.github/workflows/ci.yml`'s `backend` job on GitHub-hosted runners, which have unrestricted
 registry access; that CI run is the actual verification of record for these tests, not a claim
-made in this document. `mvn test` (unit tests) *was* run directly in the sandbox and all 20 pass.
+made in this document. `mvn test` (unit tests) *was* run directly in the sandbox and all 37 pass.
 
 ### Format/lint
 `mvn verify` also runs Spotless (Google Java Format) in `check` mode — the build fails on
@@ -52,7 +73,8 @@ unformatted code, not just warns. `mvn spotless:apply` reformats in place.
 ### Unit tests (Jasmine + Karma), run by `ng test`
 46 tests, headless Chrome. Notable coverage beyond the generated boilerplate:
 
-- `Auth` — login/logout persist and clear the token+user (and `localStorage`), `hasAnyRole`
+- `Auth` — login/logout persist and clear the access+refresh token and user (and `localStorage`),
+  logout best-effort calls the backend to revoke the refresh token (ADR-0006), `hasAnyRole`
   checks against the current user's roles.
 - `authGuard` / `roleGuard` — both branches of each (allowed vs. redirected), including the
   "route declares no required roles" pass-through case.

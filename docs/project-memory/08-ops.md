@@ -52,12 +52,6 @@ own integrity model: it checksums applied migrations).
   demo — see `11-retirement-plan.md`/`09-backlog.md`).
 
 ## Known operational gotchas
-- **Purchase order numbering** (`PurchaseOrderService.generatePoNumber()`) derives the next
-  number from `COUNT(*) + 1` inside the same transaction that inserts the row. This is **not
-  safe under concurrent PO creation** (a race could produce a duplicate `po_number`, which the
-  unique DB constraint would then reject as a 500, not a friendly error). At realistic demo
-  traffic (one procurement officer clicking a button) this never manifests; it is called out here
-  and in `09-backlog.md` rather than silently left as a latent bug.
 - **A misconfigured nginx `/api` proxy fails silently as a 404**, not a CORS error, because the
   browser sees it as same-origin (see ADR-0003) — if the frontend container is up but every API
   call 404s, check `frontend/nginx.conf` and that the `backend` service name resolves on the

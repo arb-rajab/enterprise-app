@@ -205,6 +205,12 @@ public class RequisitionService {
               + " is currently awaiting approval from role "
               + step.getApproverRole());
     }
+    if (step.getApproverRole() == RoleName.ROLE_DEPARTMENT_MANAGER
+        && !belongsToRequisitionsDepartment(approver, requisition)) {
+      throw new AccessDeniedException(
+          "Only a department manager belonging to this requisition's own department may act on"
+              + " this step");
+    }
 
     step.setDecidedBy(approver);
     step.setComments(decision.comments());
@@ -264,6 +270,11 @@ public class RequisitionService {
               + ")");
     }
     requisition.setStatus(RequisitionStatus.CONVERTED);
+  }
+
+  private boolean belongsToRequisitionsDepartment(User approver, PurchaseRequisition requisition) {
+    return approver.getDepartment() != null
+        && approver.getDepartment().getId().equals(requisition.getDepartment().getId());
   }
 
   private void requireOwner(PurchaseRequisition requisition, User actor) {

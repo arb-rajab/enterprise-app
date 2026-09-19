@@ -184,6 +184,32 @@ class RequisitionServiceTest {
   }
 
   @Test
+  void managerFromAnotherDepartmentCannotDecideOnAStep() {
+    PurchaseRequisition requisition = createDraft(new BigDecimal("50.00"), 1);
+    requisition.setId(13L);
+    when(requisitionRepository.findById(13L)).thenReturn(java.util.Optional.of(requisition));
+    service.submit(13L, employee);
+
+    Department otherDepartment = Department.builder().code("SALES").name("Sales").build();
+    otherDepartment.setId(20L);
+    User otherDepartmentManager =
+        User.builder()
+            .email("other-manager@test.local")
+            .firstName("Olivia")
+            .lastName("Otherdept")
+            .roles(EnumSet.of(RoleName.ROLE_DEPARTMENT_MANAGER))
+            .department(otherDepartment)
+            .build();
+    otherDepartmentManager.setId(5L);
+
+    assertThatThrownBy(
+            () ->
+                service.decide(
+                    13L, new ApprovalDecisionRequest(true, "Approved"), otherDepartmentManager))
+        .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
+  }
+
+  @Test
   void employeeOnlySeesTheirOwnRequisitions() {
     List<PurchaseRequisition> own = List.of(createDraft(new BigDecimal("10.00"), 1));
     when(requisitionRepository.findByRequesterId(employee.getId())).thenReturn(own);

@@ -23,7 +23,13 @@
 - Data-scoped checks inside services where a role alone can't express the rule — e.g.
   `RequisitionService.requireOwner()` ensures only the requisition's own requester (or an Admin)
   can submit/cancel it, and `decide()` checks the acting user's roles against the specific
-  pending step's required role, not just "any approver role."
+  pending step's required role, not just "any approver role." For the `ROLE_DEPARTMENT_MANAGER`
+  step specifically, `decide()` also requires the approver's own department to match the
+  requisition's department — see `adr/0007-department-scoped-approval-authorization.md` for the
+  cross-department approval bypass this closed (a Department Manager from any department could
+  previously approve/reject any other department's requisitions) and why
+  `ROLE_PROCUREMENT_OFFICER`/`ROLE_FINANCE_APPROVER` are deliberately excluded from this
+  restriction.
 - **Row-level read scoping** on requisitions and purchase orders: `ROLE_ADMIN`,
   `ROLE_PROCUREMENT_OFFICER`, and `ROLE_FINANCE_APPROVER` can read every row (matching the
   org-wide approval authority `decide()` already grants them); `ROLE_DEPARTMENT_MANAGER` is
@@ -63,10 +69,17 @@
 - Both Dockerfiles are multi-stage (build stage discarded from the final image) and run the
   application as a **non-root user** (`procureflow` in the backend image, the stock `nginx` user
   in the frontend image, deliberately not `root`).
-- Dependabot is enabled for this repository (see the PR that introduced it and
-  `12-session-handoff.md` for the verification status of that specific check at merge time —
-  dependency-vulnerability status is a point-in-time fact that belongs in the handoff log, not
-  duplicated here).
+- **Dependabot version updates** are configured via `.github/dependabot.yml` (added in the PR
+  that introduced this bullet's correction — previously this doc claimed Dependabot was already
+  enabled and cited "the PR that introduced it," but no such PR or config file existed; that was
+  inaccurate and has been fixed rather than left standing). It covers all four ecosystems present
+  in this repo: `maven` (`/backend`), `npm` (`/frontend`), `docker` (both `/backend` and
+  `/frontend` Dockerfiles), and `github-actions` (`/`), each on a weekly schedule.
+- **Dependabot security alerts** (the repository Settings → Security toggle that scans existing
+  dependencies for known CVEs) is a distinct, admin-only setting — not something a committed file
+  controls, and not something verifiable or changeable via the tooling available in a worker
+  session. It needs to be confirmed/enabled by a repository admin in GitHub Settings; see
+  `12-session-handoff.md` for the current verification status of that specific check.
 
 ## Secrets management
 - No secret is committed to the repository. `.env` is git-ignored; `.env.example` documents the

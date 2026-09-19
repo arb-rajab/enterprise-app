@@ -1,5 +1,66 @@
 # Session Handoff
 
+## Session 3 — Cross-department approval bypass fix, Dependabot correction, divergent-history root cause
+
+_Numbered "Session 3" because PR #2 (`15e37b2`/`06c9e2c`/`81b4f29` — PO-number race condition,
+row-level read scoping, JWT refresh/revocation) clearly happened as a second, distinct session's
+work but left no handoff entry of its own here; see `13-divergent-history-incident.md`, which
+this session wrote after noticing the same "patch around it, don't write down why" pattern in
+that session's unresolved merge conflict._
+
+**Starting state verified:** `git fetch origin main` was run before any change; the branch
+`claude/approval-bypass-fix-82u8ke` did not yet exist on the remote, and the previously-checked-out
+local branch was found to be behind `origin/main` (missing PR #2's commits), so it was reset to
+`origin/main` before starting work — see `13-divergent-history-incident.md` for why that check
+matters in this repo specifically.
+
+**What was built:**
+1. Fixed a cross-department approval bypass: `RequisitionService.decide()` checked only that the
+   approver held the role required by the pending step, never that a `ROLE_DEPARTMENT_MANAGER`
+   approver belonged to the requisition's own department. Any Department Manager could
+   approve/reject any other department's requisitions. See
+   `adr/0007-department-scoped-approval-authorization.md` for the fix and why
+   `ROLE_PROCUREMENT_OFFICER`/`ROLE_FINANCE_APPROVER` are deliberately excluded (org-wide by
+   design, per ADR-0004/ADR-0005).
+2. Verified the `06-security.md` claim "Dependabot is enabled for this repository" was false —
+   no `.github/dependabot.yml` and no PR introducing one existed anywhere in git history. Added
+   `.github/dependabot.yml` (maven/backend, npm/frontend, docker x2, github-actions — weekly).
+   Corrected the doc to distinguish that committable config (now fixed) from Dependabot security
+   alerts, which is a repository Settings toggle this session's tooling cannot verify or change.
+3. Root-caused the repeated divergent-history incidents — see `13-divergent-history-incident.md`.
+
+### Branch / PR
+- Branch: `claude/approval-bypass-fix-82u8ke`
+- PR: [#3](https://github.com/arb-rajab/enterprise-app/pull/3)
+- Merge status: open, not yet merged as of this entry
+
+### CI status per check
+_Filled in below once the PR's CI has actually run — not claimed in advance._
+
+### Dependabot status
+- **Version updates:** previously false — no config existed despite the doc's claim. Fixed by
+  adding `.github/dependabot.yml` in PR #3.
+- **Security alerts (Settings → Security toggle):** unverifiable with this session's tooling (no
+  repository-admin API access to `GET /repos/{owner}/{repo}/vulnerability-alerts` or an
+  equivalent was available). Needs a repo admin to confirm/enable directly in GitHub Settings.
+
+### Test counts (as run directly, not just claimed)
+- Backend unit tests: **38/38 passing** (`mvn test`, run directly in this session's sandbox),
+  including the new regression test
+  `RequisitionServiceTest.managerFromAnotherDepartmentCannotDecideOnAStep`, confirmed to fail
+  against the pre-fix code before the fix was applied.
+- Backend format (Spotless): `mvn spotless:apply` run before tests, per this repo's standing
+  practice.
+- Integration tests / Docker builds: not executed in this session's sandbox, same Docker-registry
+  network restriction documented in Session 1's entry below — verified by CI instead.
+
+### Real blockers hit this session
+1. Same Docker-registry sandbox restriction as Session 1 — integration tests and Docker builds
+   are CI-verified, not locally run.
+2. No tooling access to the GitHub repository-admin API needed to verify the Dependabot
+   security-alerts toggle or to change repository Settings (squash-merge, branch protection) —
+   both documented for admin follow-up rather than guessed at or silently skipped.
+
 ## Session 1 — Initial architecture and core scaffold
 
 **Starting state verified:** the repository was confirmed genuinely empty (no commits, no files

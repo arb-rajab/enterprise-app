@@ -53,3 +53,11 @@ Deferred work, each with the reason it was deferred rather than a bare TODO.
   jobs on every push/PR regardless of which side changed) — worth adding `paths:` filters once
   the repo has enough history that most changes are one-sided, to save CI minutes. Not done now
   because the very first PR touches both sides anyway.
+- **Admin action needed: disable "Allow squash merging" (or adopt merge/rebase-merge as the
+  standing PR strategy) and consider branch protection on `main`.** This repo has hit
+  divergent/unrelated-history merge conflicts twice, root-caused in
+  `13-divergent-history-incident.md`: an initial double-root-commit condition, compounded by PR #1
+  being squash-merged, which orphaned the feature branch's history and caused the second
+  incident when the next session branched from the pre-squash tip instead of fresh `main`. Both
+  changes are GitHub repository Settings actions, not committable files, so out of scope for a
+  worker session — flagged here for a repo admin.

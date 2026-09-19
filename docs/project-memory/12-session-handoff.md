@@ -31,15 +31,15 @@ matters in this repo specifically.
 
 ### Branch / PR
 - Branch: `claude/approval-bypass-fix-82u8ke`
-- PR: _filled in below once opened_
-- Merge status: _filled in below once resolved_
+- PR: [#3](https://github.com/arb-rajab/enterprise-app/pull/3)
+- Merge status: open, not yet merged as of this entry
 
 ### CI status per check
 _Filled in below once the PR's CI has actually run — not claimed in advance._
 
 ### Dependabot status
 - **Version updates:** previously false — no config existed despite the doc's claim. Fixed by
-  adding `.github/dependabot.yml` in this session's PR.
+  adding `.github/dependabot.yml` in PR #3.
 - **Security alerts (Settings → Security toggle):** unverifiable with this session's tooling (no
   repository-admin API access to `GET /repos/{owner}/{repo}/vulnerability-alerts` or an
   equivalent was available). Needs a repo admin to confirm/enable directly in GitHub Settings.

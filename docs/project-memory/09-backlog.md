@@ -3,14 +3,14 @@
 Deferred work, each with the reason it was deferred rather than a bare TODO.
 
 ## Security / auth
-- **Row-level read scoping** on `GET /api/v1/requisitions` (currently returns all requisitions to
-  any authenticated user; write actions are correctly scoped). Deferred because it interacts with
-  a design question — should managers see their whole department's requisitions, or only ones
-  routed to them? — that deserves its own decision, not a quick patch. See `06-security.md` R2.
-- **JWT revocation / refresh-token rotation.** `app.security.jwt.refresh-token-ttl-days` exists
-  as a placeholder config value; no refresh flow is implemented. See ADR-0002.
+- **Silent background access-token renewal in the frontend.** `Auth`/`authInterceptor` still just
+  bounce to `/login` on a 401; nothing calls `POST /api/v1/auth/refresh` proactively before the
+  access token's short TTL expires, even though the backend refresh flow exists and is used on
+  explicit logout. See ADR-0006.
+- **Scheduled cleanup of expired/revoked `refresh_tokens` rows** — no retention/sweep job exists;
+  fine at demo data volumes.
 - **Rate limiting and account lockout** on `/api/v1/auth/**`.
-- ~~OIDC/SSO federation~~ — done, see `adr/0005-oidc-sso-identity-linking.md`. What's still
+- ~~OIDC/SSO federation~~ — done, see `adr/0008-oidc-sso-identity-linking.md`. What's still
   deferred from that work: an **unlink-SSO-identity flow** (there's no way to clear a user's
   `oidc_provider`/`oidc_subject` and force password-only login again), and revisiting the
   link-by-email assumption if this ever needs to support two real people legitimately sharing one
@@ -34,9 +34,6 @@ Deferred work, each with the reason it was deferred rather than a bare TODO.
 ## Platform / non-functional
 - **Pagination** on all list endpoints (`findAll()` returns everything; fine at demo data
   volumes, not fine at scale).
-- **Purchase order number generation race condition** (`COUNT(*) + 1` under concurrent creation)
-  — fix is a Postgres sequence (`CREATE SEQUENCE po_number_seq`) instead of a count query. See
-  `08-ops.md`.
 - **Structured logging / log aggregation / metrics export** (Actuator exposes `health` and `info`
   only; `prometheus` endpoint and a metrics backend are not wired up).
 - **A real deployment target and CD pipeline.** CI proves the app builds, tests, and its Docker
@@ -59,3 +56,11 @@ Deferred work, each with the reason it was deferred rather than a bare TODO.
   jobs on every push/PR regardless of which side changed) — worth adding `paths:` filters once
   the repo has enough history that most changes are one-sided, to save CI minutes. Not done now
   because the very first PR touches both sides anyway.
+- **Admin action needed: disable "Allow squash merging" (or adopt merge/rebase-merge as the
+  standing PR strategy) and consider branch protection on `main`.** This repo has hit
+  divergent/unrelated-history merge conflicts twice, root-caused in
+  `13-divergent-history-incident.md`: an initial double-root-commit condition, compounded by PR #1
+  being squash-merged, which orphaned the feature branch's history and caused the second
+  incident when the next session branched from the pre-squash tip instead of fresh `main`. Both
+  changes are GitHub repository Settings actions, not committable files, so out of scope for a
+  worker session — flagged here for a repo admin.

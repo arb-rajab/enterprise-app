@@ -19,7 +19,7 @@ import org.springframework.test.context.DynamicPropertySource;
  * realm import committed at {@code keycloak/procureflow-realm.json} (copied to this module's test
  * resources - see {@code keycloak/README.md}), standing in for the IdP a real deployment would
  * point at. No mock IdP, no stubbed token issuer - see
- * docs/project-memory/adr/0005-oidc-sso-identity-linking.md.
+ * docs/project-memory/adr/0008-oidc-sso-identity-linking.md.
  *
  * <p>Started once in a static initializer, same "singleton container" reasoning as {@link
  * AbstractIntegrationTest}'s Postgres container: subclasses share one running Keycloak rather than

@@ -16,7 +16,7 @@ services:
       retries: 10
 
   # Local, open-source OIDC provider for the SSO login path - see
-  # docs/project-memory/adr/0005-oidc-sso-identity-linking.md and keycloak/README.md. Never a
+  # docs/project-memory/adr/0008-oidc-sso-identity-linking.md and keycloak/README.md. Never a
   # stand-in for a real IdP tenant: it only ever needs to be reachable from `localhost` and this
   # compose network.
   keycloak:

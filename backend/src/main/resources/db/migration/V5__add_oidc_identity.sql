@@ -1,5 +1,5 @@
 -- Adds the columns needed to link a user record to an external OIDC identity (Keycloak). See
--- docs/project-memory/adr/0005-oidc-sso-identity-linking.md for why this links by email onto the
+-- docs/project-memory/adr/0008-oidc-sso-identity-linking.md for why this links by email onto the
 -- existing `users` row rather than modeling a separate identity table.
 --
 -- `password_hash` stays NOT NULL: a user provisioned purely via OIDC still gets a random,

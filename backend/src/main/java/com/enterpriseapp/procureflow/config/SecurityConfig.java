@@ -30,7 +30,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
  * Security configuration: two independent filter chains, so the OIDC login handshake (which needs
  * an {@code HttpSession} to hold its redirect state/nonce, per the OAuth2 spec) can't weaken the
  * existing stateless JWT API - see {@code
- * docs/project-memory/adr/0005-oidc-sso-identity-linking.md}.
+ * docs/project-memory/adr/0008-oidc-sso-identity-linking.md}.
  *
  * <ul>
  *   <li>{@link #oidcFilterChain} ({@code @Order(1)}), matching only {@code /oauth2/**} and {@code

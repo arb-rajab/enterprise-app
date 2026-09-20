@@ -28,13 +28,14 @@ describe('SsoCallback', () => {
     window.location.hash = '';
   });
 
-  it('stores the token from the URL fragment and navigates to the dashboard once the profile loads', () => {
-    window.location.hash = '#token=a-real-token&expiresIn=1800';
+  it('stores the token pair from the URL fragment and navigates to the dashboard once the profile loads', () => {
+    window.location.hash = '#token=a-real-token&refreshToken=a-real-refresh-token&expiresIn=1800';
 
     fixture = TestBed.createComponent(SsoCallback);
     fixture.detectChanges();
 
     expect(localStorage.getItem('procureflow.accessToken')).toBe('a-real-token');
+    expect(localStorage.getItem('procureflow.refreshToken')).toBe('a-real-refresh-token');
 
     httpMock.expectOne('/api/v1/users/me').flush({
       id: 1,
@@ -50,6 +51,16 @@ describe('SsoCallback', () => {
 
   it('shows an error and does not call the API when the fragment has no token', () => {
     window.location.hash = '#error=oidc_login_failed';
+
+    fixture = TestBed.createComponent(SsoCallback);
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.errorMessage()).toContain('SSO sign-in failed');
+    httpMock.expectNone('/api/v1/users/me');
+  });
+
+  it('shows an error when the fragment has a token but no refresh token', () => {
+    window.location.hash = '#token=a-real-token';
 
     fixture = TestBed.createComponent(SsoCallback);
     fixture.detectChanges();

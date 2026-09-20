@@ -16,7 +16,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 /**
  * Unit coverage for the identity-linking decision in
- * docs/project-memory/adr/0005-oidc-sso-identity-linking.md: an OIDC login links onto an existing
+ * docs/project-memory/adr/0008-oidc-sso-identity-linking.md: an OIDC login links onto an existing
  * password-based account with the same email rather than creating a second, disconnected identity,
  * and never touches that account's existing password hash while doing so - the JWT login path for
  * the same user must be completely unaffected. The full round trip against a real Keycloak

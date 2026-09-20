@@ -6,7 +6,7 @@
 - Spring Security `oauth2Login` against a real, local, open-source Keycloak instance
   (`docker-compose.yml`'s `keycloak` service, seeded from `keycloak/procureflow-realm.json`) — an
   *additional* login path, not a replacement for the existing JWT register/login. See
-  `adr/0005-oidc-sso-identity-linking.md` for the identity-linking decision (an OIDC login with an
+  `adr/0008-oidc-sso-identity-linking.md` for the identity-linking decision (an OIDC login with an
   email matching an existing JWT-registered account links onto it, by design, rather than creating
   a second disconnected identity) and `06-security.md` for the updated security posture.
 - A successful OIDC login mints the same app JWT the password path issues, via the same
@@ -29,12 +29,12 @@
   pattern as `/api/**` (ADR-0003).
 
 ### Known limitations introduced by this release
-See `adr/0005-oidc-sso-identity-linking.md`'s Consequences section and the updated
+See `adr/0008-oidc-sso-identity-linking.md`'s Consequences section and the updated
 `09-backlog.md`: no unlink-SSO-identity flow, and the link-by-email assumption doesn't support two
 real people legitimately sharing one email address.
 
 ### Verification status
-See `12-session-handoff.md` Session 2 for the actual CI outcome and test counts as verified (or
+See `12-session-handoff.md` Session 4 for the actual CI outcome and test counts as verified (or
 explicitly not verifiable in-sandbox) at merge time for this release.
 
 ## v0.1.0 — Initial architecture and core scaffold

@@ -56,7 +56,7 @@ public class UserService {
   /**
    * Finds or creates the local user for an OIDC login, linking by email.
    *
-   * <p>See {@code docs/project-memory/adr/0005-oidc-sso-identity-linking.md} for why this links
+   * <p>See {@code docs/project-memory/adr/0008-oidc-sso-identity-linking.md} for why this links
    * onto an existing password-based account with the same email rather than treating OIDC and JWT
    * logins as separate identities. A brand-new account is provisioned with a random, unguessable
    * BCrypt hash (never handed to the caller) so the JWT login path needs no null-password special

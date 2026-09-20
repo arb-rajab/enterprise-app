@@ -125,7 +125,7 @@
         </dependency>
         <dependency>
             <!-- Real, local Keycloak container for OIDC integration tests - see
-                 docs/project-memory/adr/0005-oidc-sso-identity-linking.md. -->
+                 docs/project-memory/adr/0008-oidc-sso-identity-linking.md. -->
             <groupId>com.github.dasniko</groupId>
             <artifactId>testcontainers-keycloak</artifactId>
             <version>${testcontainers-keycloak.version}</version>

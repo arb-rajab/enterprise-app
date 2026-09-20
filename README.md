@@ -54,7 +54,7 @@ Keycloak users, both password `Password123!`:
 | Email | What it demonstrates |
 | --- | --- |
 | sso.newhire@procureflow.test | Provisions a brand-new local account via SSO |
-| manager@procureflow.test | Links onto the existing JWT-registered "manager" account — see `docs/project-memory/adr/0005-oidc-sso-identity-linking.md` |
+| manager@procureflow.test | Links onto the existing JWT-registered "manager" account — see `docs/project-memory/adr/0008-oidc-sso-identity-linking.md` |
 
 ### Local development (without full Docker rebuilds)
 ```bash

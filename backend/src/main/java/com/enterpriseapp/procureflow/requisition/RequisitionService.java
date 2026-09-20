@@ -10,6 +10,7 @@ import com.enterpriseapp.procureflow.department.DepartmentService;
 import com.enterpriseapp.procureflow.requisition.dto.ApprovalDecisionRequest;
 import com.enterpriseapp.procureflow.requisition.dto.CreateRequisitionRequest;
 import com.enterpriseapp.procureflow.requisition.dto.LineItemRequest;
+import com.enterpriseapp.procureflow.user.ReadScopePolicy;
 import com.enterpriseapp.procureflow.user.RoleName;
 import com.enterpriseapp.procureflow.user.User;
 import java.time.Instant;
@@ -18,6 +19,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,15 +34,51 @@ public class RequisitionService {
   private final CatalogItemService catalogItemService;
   private final ApprovalWorkflowPolicy approvalWorkflowPolicy;
   private final AuditService auditService;
-
-  public List<PurchaseRequisition> findAll() {
-    return requisitionRepository.findAll();
-  }
+  private final ReadScopePolicy readScopePolicy;
 
   public PurchaseRequisition findById(Long id) {
     return requisitionRepository
         .findById(id)
         .orElseThrow(() -> ResourceNotFoundException.of("PurchaseRequisition", id));
+  }
+
+  /**
+   * Requisitions {@code viewer} is allowed to read: all of them for roles with org-wide approval
+   * authority (see {@link ReadScopePolicy}), a department manager's own department, or otherwise
+   * just the viewer's own requisitions. Write actions were already scoped this way (see {@code
+   * requireOwner}/{@code decide}); this closes the previously undocumented gap where every
+   * authenticated user could list every requisition regardless of role (see 06-security.md).
+   */
+  public List<PurchaseRequisition> findVisibleTo(User viewer) {
+    if (readScopePolicy.hasOrganizationWideReadAccess(viewer)) {
+      return requisitionRepository.findAll();
+    }
+    if (viewer.getRoles().contains(RoleName.ROLE_DEPARTMENT_MANAGER)
+        && viewer.getDepartment() != null) {
+      return requisitionRepository.findByDepartmentId(viewer.getDepartment().getId());
+    }
+    return requisitionRepository.findByRequesterId(viewer.getId());
+  }
+
+  /** As {@link #findById(Long)}, but 403s if {@code viewer} isn't allowed to read this one. */
+  public PurchaseRequisition findVisibleById(Long id, User viewer) {
+    PurchaseRequisition requisition = findById(id);
+    if (!isVisibleTo(requisition, viewer)) {
+      throw new AccessDeniedException("You do not have permission to view this requisition");
+    }
+    return requisition;
+  }
+
+  private boolean isVisibleTo(PurchaseRequisition requisition, User viewer) {
+    if (readScopePolicy.hasOrganizationWideReadAccess(viewer)) {
+      return true;
+    }
+    if (requisition.getRequester().getId().equals(viewer.getId())) {
+      return true;
+    }
+    return viewer.getRoles().contains(RoleName.ROLE_DEPARTMENT_MANAGER)
+        && viewer.getDepartment() != null
+        && requisition.getDepartment().getId().equals(viewer.getDepartment().getId());
   }
 
   /** Requisitions with a step pending on any of the caller's roles. */
@@ -167,6 +205,12 @@ public class RequisitionService {
               + " is currently awaiting approval from role "
               + step.getApproverRole());
     }
+    if (step.getApproverRole() == RoleName.ROLE_DEPARTMENT_MANAGER
+        && !belongsToRequisitionsDepartment(approver, requisition)) {
+      throw new AccessDeniedException(
+          "Only a department manager belonging to this requisition's own department may act on"
+              + " this step");
+    }
 
     step.setDecidedBy(approver);
     step.setComments(decision.comments());
@@ -226,6 +270,11 @@ public class RequisitionService {
               + ")");
     }
     requisition.setStatus(RequisitionStatus.CONVERTED);
+  }
+
+  private boolean belongsToRequisitionsDepartment(User approver, PurchaseRequisition requisition) {
+    return approver.getDepartment() != null
+        && approver.getDepartment().getId().equals(requisition.getDepartment().getId());
   }
 
   private void requireOwner(PurchaseRequisition requisition, User actor) {

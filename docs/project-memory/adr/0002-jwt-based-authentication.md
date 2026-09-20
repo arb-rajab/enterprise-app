@@ -1,7 +1,7 @@
 # ADR-0002: Stateless JWT authentication over server-side sessions
 
 ## Status
-Accepted. Extended (not superseded) by `adr/0005-oidc-sso-identity-linking.md`, which adds OIDC
+Accepted. Extended (not superseded) by `adr/0008-oidc-sso-identity-linking.md`, which adds OIDC
 login as an additional path alongside everything decided below.
 
 ## Context

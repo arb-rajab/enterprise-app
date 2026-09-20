@@ -1,4 +1,4 @@
-# ADR-0005: OIDC/SSO login, added alongside JWT, linked by email
+# ADR-0008: OIDC/SSO login, added alongside JWT, linked by email
 
 ## Status
 Accepted
@@ -28,7 +28,7 @@ email that already has a JWT-registered account, is that the same user, or a dif
 incoming OIDC email (Keycloak's `email` claim) against `users.email`:
 
 - **Match found** → that row's `oidc_provider`/`oidc_subject` columns (added in
-  `V3__add_oidc_identity.sql`) are set/updated to point at this IdP identity. Nothing else about
+  `V5__add_oidc_identity.sql`) are set/updated to point at this IdP identity. Nothing else about
   the row changes - in particular, its `password_hash` and roles are untouched. The user can now
   sign in with *either* their password or SSO and lands on the same account, same requisitions,
   same approval history.
@@ -43,12 +43,15 @@ incoming OIDC email (Keycloak's `email` claim) against `users.email`:
   created.
 
 Mechanically, `OidcAuthenticationSuccessHandler` (registered as the `oauth2Login` success handler
-on a dedicated `oidcFilterChain`, see `SecurityConfig`) calls `findOrProvisionForOidc`, mints a
-normal app JWT via the *same* `JwtService` the password-login path uses, and redirects the browser
-to the SPA with that token in a URL fragment (`#token=...`, never a query param, so it can't end up
-in this server's access logs or an outbound `Referer` header). From the frontend's perspective, an
-OIDC login and a password login both end with "here is a bearer token and here is `/users/me`" -
-there is no OIDC-specific session, cookie, or client-side code path after that point.
+on a dedicated `oidcFilterChain`, see `SecurityConfig`) calls `findOrProvisionForOidc`, then mints
+the exact same *pair* the password-login path does: an access token via `JwtService` and a
+revocable refresh token via `RefreshTokenService` (ADR-0006, merged into this branch after this
+ADR's first draft - OIDC login gets the same rotation/revocation story password login does, not a
+weaker one). Both travel back to the SPA in a URL fragment (`#token=...&refreshToken=...`, never
+query params, so neither can end up in this server's access logs or an outbound `Referer` header).
+From the frontend's perspective, an OIDC login and a password login both end with "here is a token
+pair and here is `/users/me`" - there is no OIDC-specific session, cookie, or client-side code path
+after that point.
 
 ## Alternatives considered
 
@@ -84,6 +87,11 @@ there is no OIDC-specific session, cookie, or client-side code path after that p
   `apiFilterChain` (`@Order(2)`, everything else, unchanged - still `STATELESS`,
   `JwtAuthenticationFilter` only). See `OidcRedirectIT.apiAuthPathIsUnaffectedByTheOidcChainExisting`
   for the regression check that the two don't bleed into each other.
+- **OIDC-issued sessions are revocable exactly like password-issued ones.** Because
+  `OidcAuthenticationSuccessHandler` calls the same `RefreshTokenService` `AuthService` uses, an
+  SSO-originated session logs out, rotates, and gets revoked through the identical
+  `/api/v1/auth/{refresh,logout}` endpoints (ADR-0006) - there's no separate "OIDC session"
+  concept to revoke differently or forget about.
 - **Keycloak's browser-facing and backend-facing addresses differ under docker-compose**
   (`localhost:8180` vs. the `keycloak` service name on the compose network), so
   `spring.security.oauth2.client.provider.keycloak` configures each endpoint URI individually

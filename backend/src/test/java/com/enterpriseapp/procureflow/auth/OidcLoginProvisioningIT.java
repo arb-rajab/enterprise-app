@@ -20,7 +20,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 /**
  * The regression proof required by this feature: a JWT-registered user and an OIDC login end up as
- * the SAME local account (ADR-0005's identity-linking decision), and doing that linking never
+ * the SAME local account (ADR-0008's identity-linking decision), and doing that linking never
  * breaks that account's existing password login. This exercises the exact claims a real Keycloak
  * container issues (not a hand-built {@code OidcUser}) through {@link UserService#
  * findOrProvisionForOidc}, then confirms both an OIDC-minted token and the original password both

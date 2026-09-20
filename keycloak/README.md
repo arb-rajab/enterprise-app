@@ -16,7 +16,7 @@ the `testcontainers-keycloak` module in the backend's OIDC integration tests, fr
     demonstrates provisioning a brand-new user via SSO.
   - `manager@procureflow.test` - has the same email as the JWT-registered "manager" seed account,
     so logging in with it demonstrates linking an OIDC identity onto an existing password-based
-    account (see `docs/project-memory/adr/0005-oidc-sso-identity-linking.md`).
+    account (see `docs/project-memory/adr/0008-oidc-sso-identity-linking.md`).
 
 None of this is real. There is no real Google/Okta/Microsoft/Keycloak-hosted tenant anywhere in
 this project - `sslRequired: none` and the fixed client secret are only safe because this Keycloak

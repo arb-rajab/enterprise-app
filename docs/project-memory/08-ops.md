@@ -11,7 +11,7 @@ docker compose up --build
 
 `docker-compose.yml` runs four services: `postgres` (with a healthcheck gating backend startup),
 `keycloak` (a real, local, dev-only OIDC provider — see `keycloak/README.md` and
-`adr/0005-oidc-sso-identity-linking.md`, also healthcheck-gated), `backend` (waits for both to be
+`adr/0008-oidc-sso-identity-linking.md`, also healthcheck-gated), `backend` (waits for both to be
 healthy, runs Flyway migrations automatically on boot), and `frontend` (nginx, proxies `/api`,
 `/oauth2`, and `/login` to `backend` — see `adr/0003-frontend-backend-integration.md`).
 
@@ -31,7 +31,7 @@ cd frontend && npm start            # ng serve, proxies /api to localhost:8080 v
 | `CORS_ALLOWED_ORIGINS` | backend | No (default `http://localhost:4200`) | Only matters for direct `ng serve` calls, see ADR-0003 |
 | `SPRING_PROFILES_ACTIVE` | backend | No (default `dev`) | Set to `prod` for production-style logging/behavior |
 | `OIDC_CLIENT_SECRET` | backend | No (default `procureflow-dev-secret`) | Dev-only, matches `keycloak/procureflow-realm.json` — see `06-security.md` |
-| `OIDC_AUTHORIZATION_URI` | backend | No (default `http://localhost:8180/...`) | Must be reachable by the **browser** — see `adr/0005-oidc-sso-identity-linking.md` |
+| `OIDC_AUTHORIZATION_URI` | backend | No (default `http://localhost:8180/...`) | Must be reachable by the **browser** — see `adr/0008-oidc-sso-identity-linking.md` |
 | `OIDC_TOKEN_URI`, `OIDC_JWKS_URI`, `OIDC_USERINFO_URI` | backend | No (default `http://localhost:8180/...`) | Must be reachable by the **backend**; docker-compose overrides these to the `keycloak` service name |
 | `OIDC_FRONTEND_REDIRECT_URI` | backend | No (default `http://localhost:4200/sso/callback`) | Where the browser lands after OIDC login; docker-compose overrides to `http://localhost:8081/sso/callback` |
 
@@ -58,12 +58,6 @@ own integrity model: it checksums applied migrations).
   demo — see `11-retirement-plan.md`/`09-backlog.md`).
 
 ## Known operational gotchas
-- **Purchase order numbering** (`PurchaseOrderService.generatePoNumber()`) derives the next
-  number from `COUNT(*) + 1` inside the same transaction that inserts the row. This is **not
-  safe under concurrent PO creation** (a race could produce a duplicate `po_number`, which the
-  unique DB constraint would then reject as a 500, not a friendly error). At realistic demo
-  traffic (one procurement officer clicking a button) this never manifests; it is called out here
-  and in `09-backlog.md` rather than silently left as a latent bug.
 - **A misconfigured nginx `/api` proxy fails silently as a 404**, not a CORS error, because the
   browser sees it as same-origin (see ADR-0003) — if the frontend container is up but every API
   call 404s, check `frontend/nginx.conf` and that the `backend` service name resolves on the

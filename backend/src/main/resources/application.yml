@@ -40,7 +40,7 @@ spring:
             # hostname (exactly the case in docker-compose, where the browser only knows
             # `localhost:8180` and the backend only knows the `keycloak` service name). Naming
             # each endpoint lets docker-compose.yml override just the backend-internal ones. See
-            # docs/project-memory/adr/0005-oidc-sso-identity-linking.md.
+            # docs/project-memory/adr/0008-oidc-sso-identity-linking.md.
             authorization-uri: ${OIDC_AUTHORIZATION_URI:http://localhost:8180/realms/procureflow/protocol/openid-connect/auth}
             token-uri: ${OIDC_TOKEN_URI:http://localhost:8180/realms/procureflow/protocol/openid-connect/token}
             jwk-set-uri: ${OIDC_JWKS_URI:http://localhost:8180/realms/procureflow/protocol/openid-connect/certs}

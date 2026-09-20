@@ -14,6 +14,7 @@ import com.enterpriseapp.procureflow.department.DepartmentService;
 import com.enterpriseapp.procureflow.requisition.dto.ApprovalDecisionRequest;
 import com.enterpriseapp.procureflow.requisition.dto.CreateRequisitionRequest;
 import com.enterpriseapp.procureflow.requisition.dto.LineItemRequest;
+import com.enterpriseapp.procureflow.user.ReadScopePolicy;
 import com.enterpriseapp.procureflow.user.RoleName;
 import com.enterpriseapp.procureflow.user.User;
 import java.math.BigDecimal;
@@ -53,7 +54,8 @@ class RequisitionServiceTest {
             departmentService,
             catalogItemService,
             new ApprovalWorkflowPolicy(),
-            auditService);
+            auditService,
+            new ReadScopePolicy());
 
     department = Department.builder().code("ENG").name("Engineering").build();
     department.setId(10L);
@@ -73,6 +75,7 @@ class RequisitionServiceTest {
             .firstName("Morgan")
             .lastName("Manager")
             .roles(EnumSet.of(RoleName.ROLE_DEPARTMENT_MANAGER))
+            .department(department)
             .build();
     manager.setId(2L);
 
@@ -178,5 +181,96 @@ class RequisitionServiceTest {
 
     assertThatThrownBy(() -> service.decide(9L, new ApprovalDecisionRequest(true, null), employee))
         .isInstanceOf(InvalidStateTransitionException.class);
+  }
+
+  @Test
+  void managerFromAnotherDepartmentCannotDecideOnAStep() {
+    PurchaseRequisition requisition = createDraft(new BigDecimal("50.00"), 1);
+    requisition.setId(13L);
+    when(requisitionRepository.findById(13L)).thenReturn(java.util.Optional.of(requisition));
+    service.submit(13L, employee);
+
+    Department otherDepartment = Department.builder().code("SALES").name("Sales").build();
+    otherDepartment.setId(20L);
+    User otherDepartmentManager =
+        User.builder()
+            .email("other-manager@test.local")
+            .firstName("Olivia")
+            .lastName("Otherdept")
+            .roles(EnumSet.of(RoleName.ROLE_DEPARTMENT_MANAGER))
+            .department(otherDepartment)
+            .build();
+    otherDepartmentManager.setId(5L);
+
+    assertThatThrownBy(
+            () ->
+                service.decide(
+                    13L, new ApprovalDecisionRequest(true, "Approved"), otherDepartmentManager))
+        .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
+  }
+
+  @Test
+  void employeeOnlySeesTheirOwnRequisitions() {
+    List<PurchaseRequisition> own = List.of(createDraft(new BigDecimal("10.00"), 1));
+    when(requisitionRepository.findByRequesterId(employee.getId())).thenReturn(own);
+
+    assertThat(service.findVisibleTo(employee)).isEqualTo(own);
+  }
+
+  @Test
+  void departmentManagerSeesTheirDepartmentsRequisitions() {
+    List<PurchaseRequisition> departmentRequisitions =
+        List.of(createDraft(new BigDecimal("10.00"), 1));
+    when(requisitionRepository.findByDepartmentId(department.getId()))
+        .thenReturn(departmentRequisitions);
+
+    assertThat(service.findVisibleTo(manager)).isEqualTo(departmentRequisitions);
+  }
+
+  @Test
+  void procurementOfficerSeesEveryRequisition() {
+    User procurementOfficer =
+        User.builder()
+            .email("procurement@test.local")
+            .firstName("Pat")
+            .lastName("Procurement")
+            .roles(EnumSet.of(RoleName.ROLE_PROCUREMENT_OFFICER))
+            .build();
+    procurementOfficer.setId(3L);
+    List<PurchaseRequisition> all = List.of(createDraft(new BigDecimal("10.00"), 1));
+    when(requisitionRepository.findAll()).thenReturn(all);
+
+    assertThat(service.findVisibleTo(procurementOfficer)).isEqualTo(all);
+  }
+
+  @Test
+  void findVisibleByIdDeniesAStrangerOutsideTheOwnersDepartment() {
+    PurchaseRequisition requisition = createDraft(new BigDecimal("10.00"), 1);
+    requisition.setId(11L);
+    when(requisitionRepository.findById(11L)).thenReturn(java.util.Optional.of(requisition));
+
+    Department otherDepartment = Department.builder().code("SALES").name("Sales").build();
+    otherDepartment.setId(20L);
+    User stranger =
+        User.builder()
+            .email("stranger@test.local")
+            .firstName("Sam")
+            .lastName("Stranger")
+            .roles(EnumSet.of(RoleName.ROLE_EMPLOYEE))
+            .department(otherDepartment)
+            .build();
+    stranger.setId(4L);
+
+    assertThatThrownBy(() -> service.findVisibleById(11L, stranger))
+        .isInstanceOf(org.springframework.security.access.AccessDeniedException.class);
+  }
+
+  @Test
+  void findVisibleByIdAllowsTheOwnersDepartmentManager() {
+    PurchaseRequisition requisition = createDraft(new BigDecimal("10.00"), 1);
+    requisition.setId(12L);
+    when(requisitionRepository.findById(12L)).thenReturn(java.util.Optional.of(requisition));
+
+    assertThat(service.findVisibleById(12L, manager)).isEqualTo(requisition);
   }
 }

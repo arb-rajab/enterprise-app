@@ -2,16 +2,24 @@
 
 ## Authentication
 - BCrypt password hashing (`BCryptPasswordEncoder`, Spring Security default strength).
-- Stateless JWT (HS256), issued by `JwtService`, validated per-request by
-  `JwtAuthenticationFilter`. See `adr/0002-jwt-based-authentication.md` for the full rationale
-  and accepted trade-offs (no server-side revocation, no refresh-token rotation yet).
+- Stateless JWT access tokens (HS256), issued by `JwtService`, validated per-request by
+  `JwtAuthenticationFilter` with no DB lookup. See `adr/0002-jwt-based-authentication.md` for the
+  full rationale.
+- **Refresh-token rotation and revocation**: `login`/`register` also issue an opaque, single-use
+  refresh token (only its SHA-256 hash is persisted, in `refresh_tokens`); `POST
+  /api/v1/auth/refresh` validates, revokes, and replaces it with a new pair, and `POST
+  /api/v1/auth/logout` revokes it outright. See `adr/0006-jwt-refresh-token-rotation-and-revocation.md`
+  for the design and its accepted residual limitation: an already-issued access token that hasn't
+  expired yet is still not revocable, since validating it stays a stateless, no-DB-lookup
+  operation by design (ADR-0002). That residual window is bounded by the access-token TTL
+  (`app.security.jwt.access-token-ttl-minutes`, default 30 minutes).
 - The signing secret (`app.security.jwt.secret` / `JWT_SECRET` env var) is required, checked to
   be ≥ 256 bits at `JwtService` construction, and the app **fails to start** without it outside
   the `dev` profile default. There is no hardcoded production secret anywhere in the codebase.
 - **OIDC/SSO login** (Spring Security `oauth2Login`, against a local Keycloak container) exists
   as a second, additional way to reach an authenticated session - not a replacement for the two
   points above. `OidcAuthenticationSuccessHandler` provisions/links a local user (by email; see
-  `adr/0005-oidc-sso-identity-linking.md` for the full identity-linking decision and its
+  `adr/0008-oidc-sso-identity-linking.md` for the full identity-linking decision and its
   trade-offs) and mints the *same* JWT `JwtService` issues for password logins, so everything
   downstream of login - authorization, row-level checks, the token format itself - is identical
   regardless of which path was used. The OIDC handshake runs on its own `SecurityFilterChain`
@@ -24,12 +32,21 @@
 - Data-scoped checks inside services where a role alone can't express the rule — e.g.
   `RequisitionService.requireOwner()` ensures only the requisition's own requester (or an Admin)
   can submit/cancel it, and `decide()` checks the acting user's roles against the specific
-  pending step's required role, not just "any approver role."
-- **Known gap, accepted for this demo:** `GET` list endpoints for requisitions
-  (`/api/v1/requisitions`) return *all* requisitions to any authenticated user, not just the
-  caller's own or their department's. Write actions are correctly scoped (see above); read
-  visibility is not row-level restricted. Tracked in `09-backlog.md`. This is disclosed here
-  deliberately rather than silently shipped as if it were full row-level security.
+  pending step's required role, not just "any approver role." For the `ROLE_DEPARTMENT_MANAGER`
+  step specifically, `decide()` also requires the approver's own department to match the
+  requisition's department — see `adr/0007-department-scoped-approval-authorization.md` for the
+  cross-department approval bypass this closed (a Department Manager from any department could
+  previously approve/reject any other department's requisitions) and why
+  `ROLE_PROCUREMENT_OFFICER`/`ROLE_FINANCE_APPROVER` are deliberately excluded from this
+  restriction.
+- **Row-level read scoping** on requisitions and purchase orders: `ROLE_ADMIN`,
+  `ROLE_PROCUREMENT_OFFICER`, and `ROLE_FINANCE_APPROVER` can read every row (matching the
+  org-wide approval authority `decide()` already grants them); `ROLE_DEPARTMENT_MANAGER` is
+  scoped to their own department; everyone else sees only rows they requested themselves.
+  Implemented once in `ReadScopePolicy` and applied by both services'
+  `findVisibleTo()`/`findVisibleById()`. See `adr/0005-row-level-read-scoping.md` for the design
+  question this resolved and why the previous "any authenticated user sees everything" behavior
+  was disclosed as an accepted gap rather than shipped silently.
 
 ## Password / credential handling
 - Minimum password length enforced at registration (8 characters, `RegisterRequest` Bean
@@ -61,10 +78,17 @@
 - Both Dockerfiles are multi-stage (build stage discarded from the final image) and run the
   application as a **non-root user** (`procureflow` in the backend image, the stock `nginx` user
   in the frontend image, deliberately not `root`).
-- Dependabot is enabled for this repository (see the PR that introduced it and
-  `12-session-handoff.md` for the verification status of that specific check at merge time —
-  dependency-vulnerability status is a point-in-time fact that belongs in the handoff log, not
-  duplicated here).
+- **Dependabot version updates** are configured via `.github/dependabot.yml` (added in the PR
+  that introduced this bullet's correction — previously this doc claimed Dependabot was already
+  enabled and cited "the PR that introduced it," but no such PR or config file existed; that was
+  inaccurate and has been fixed rather than left standing). It covers all four ecosystems present
+  in this repo: `maven` (`/backend`), `npm` (`/frontend`), `docker` (both `/backend` and
+  `/frontend` Dockerfiles), and `github-actions` (`/`), each on a weekly schedule.
+- **Dependabot security alerts** (the repository Settings → Security toggle that scans existing
+  dependencies for known CVEs) is a distinct, admin-only setting — not something a committed file
+  controls, and not something verifiable or changeable via the tooling available in a worker
+  session. It needs to be confirmed/enabled by a repository admin in GitHub Settings; see
+  `12-session-handoff.md` for the current verification status of that specific check.
 
 ## Secrets management
 - No secret is committed to the repository. `.env` is git-ignored; `.env.example` documents the
@@ -79,7 +103,9 @@
 
 ## What a real production hardening pass would still need to add
 (Explicitly deferred — see `09-backlog.md` for the full list with reasoning per item.)
-Rate limiting on `/api/v1/auth/**`, account lockout after repeated failed logins, JWT revocation
-(deny-list or short-TTL + refresh rotation), row-level read authorization on list endpoints,
-structured audit-log export/retention policy, and a real secrets manager (Vault/AWS Secrets
-Manager/etc.) instead of environment variables.
+Rate limiting on `/api/v1/auth/**`, account lockout after repeated failed logins, silent
+background access-token renewal in the frontend (the refresh endpoint exists and is used on
+explicit logout, but the SPA doesn't yet call it proactively before an access token expires),
+scheduled cleanup of expired/revoked `refresh_tokens` rows, structured audit-log export/retention
+policy, and a real secrets manager (Vault/AWS Secrets Manager/etc.) instead of environment
+variables.

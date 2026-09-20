@@ -33,7 +33,7 @@ Cross-cutting concerns live in `common/` (base entity, exceptions, global error 
 `config/` (Spring `@Configuration` classes, including the two `SecurityFilterChain`s in
 `SecurityConfig`), and `security/` (JWT issuance/validation, the `UserDetailsService` adapter, and
 the OIDC success/failure handlers that finish an SSO login by minting the same JWT — see
-`adr/0005-oidc-sso-identity-linking.md`). `audit/` is a small cross-feature service every
+`adr/0008-oidc-sso-identity-linking.md`). `audit/` is a small cross-feature service every
 workflow-mutating method calls into.
 
 This structure was chosen (over a strict `controller/`, `service/`, `repository/` layering

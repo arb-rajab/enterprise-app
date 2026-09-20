@@ -4,9 +4,10 @@ import { Auth } from '../../../core/services/auth';
 
 /**
  * Lands here after the backend's OIDC handshake redirects back to the SPA (see
- * `OidcAuthenticationSuccessHandler` and docs/project-memory/adr/0005-oidc-sso-identity-linking.md).
- * The token travels as a URL fragment (`#token=...`), not a query param, so it never reaches this
- * page's own server access logs or an outbound `Referer` header.
+ * `OidcAuthenticationSuccessHandler` and docs/project-memory/adr/0008-oidc-sso-identity-linking.md).
+ * The access/refresh token pair travels as a URL fragment (`#token=...&refreshToken=...`), not
+ * query params, so neither reaches this page's own server access logs or an outbound `Referer`
+ * header.
  */
 @Component({
   selector: 'app-sso-callback',
@@ -23,13 +24,14 @@ export class SsoCallback implements OnInit {
   ngOnInit(): void {
     const params = new URLSearchParams(window.location.hash.replace(/^#/, ''));
     const token = params.get('token');
+    const refreshToken = params.get('refreshToken');
 
-    if (!token) {
+    if (!token || !refreshToken) {
       this.errorMessage.set('SSO sign-in failed. Please try again or use your password.');
       return;
     }
 
-    this.auth.completeSsoLogin(token).subscribe({
+    this.auth.completeSsoLogin(token, refreshToken).subscribe({
       next: () => this.router.navigate(['/dashboard']),
       error: () => {
         this.auth.logout();

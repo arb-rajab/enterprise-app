@@ -13,6 +13,7 @@ describe('Auth', () => {
     accessToken: 'a-token',
     tokenType: 'Bearer',
     expiresInSeconds: 1800,
+    refreshToken: 'a-refresh-token',
     user: {
       id: 1,
       email: 'employee@procureflow.test',
@@ -50,7 +51,7 @@ describe('Auth', () => {
     expect(localStorage.getItem('procureflow.accessToken')).toBe('a-token');
   });
 
-  it('clears the session on logout', () => {
+  it('clears the session on logout and asks the server to revoke the refresh token', () => {
     service.login({ email: sampleResponse.user.email, password: 'Password123!' }).subscribe();
     httpMock.expectOne('/api/v1/auth/login').flush(sampleResponse);
 
@@ -58,6 +59,11 @@ describe('Auth', () => {
 
     expect(service.isAuthenticated()).toBeFalse();
     expect(localStorage.getItem('procureflow.accessToken')).toBeNull();
+    expect(localStorage.getItem('procureflow.refreshToken')).toBeNull();
+
+    const revokeReq = httpMock.expectOne('/api/v1/auth/logout');
+    expect(revokeReq.request.body).toEqual({ refreshToken: 'a-refresh-token' });
+    revokeReq.flush(null);
   });
 
   it('hasAnyRole checks the current user roles', () => {
@@ -68,13 +74,15 @@ describe('Auth', () => {
     expect(service.hasAnyRole('ROLE_ADMIN')).toBeFalse();
   });
 
-  it('completeSsoLogin stores the token immediately and the profile once /users/me responds', () => {
-    service.completeSsoLogin('an-sso-token').subscribe();
+  it('completeSsoLogin stores the token pair immediately and the profile once /users/me responds', () => {
+    service.completeSsoLogin('an-sso-token', 'an-sso-refresh-token').subscribe();
 
-    // The token (and its Authorization header, via authInterceptor) must be usable right away -
-    // it is set synchronously, before the /users/me call that fetches the profile even resolves.
+    // The token pair (and the access token's Authorization header, via authInterceptor) must be
+    // usable right away - both are set synchronously, before the /users/me call that fetches the
+    // profile even resolves.
     expect(service.isAuthenticated()).toBeTrue();
     expect(localStorage.getItem('procureflow.accessToken')).toBe('an-sso-token');
+    expect(localStorage.getItem('procureflow.refreshToken')).toBe('an-sso-refresh-token');
 
     const req = httpMock.expectOne('/api/v1/users/me');
     req.flush(sampleResponse.user);

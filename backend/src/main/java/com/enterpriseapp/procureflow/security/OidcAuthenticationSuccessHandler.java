@@ -18,11 +18,12 @@ import org.springframework.security.web.authentication.AuthenticationSuccessHand
 import org.springframework.stereotype.Component;
 
 /**
- * Finishes an OIDC login by provisioning/linking the local {@link User} (see ADR-0005) and minting
- * the same app-issued JWT the custom login path hands out, then sending the browser back to the SPA
- * with it. From the frontend's point of view, OIDC login and password login end the same way: an
- * {@code AuthResponse}-shaped token it can store and start sending as {@code Authorization: Bearer
- * <token>}.
+ * Finishes an OIDC login by provisioning/linking the local {@link User} (see ADR-0008) and minting
+ * the same access/refresh token pair {@code AuthService} hands out for password logins - including
+ * a real, revocable {@link RefreshTokenService} refresh token (ADR-0006), not just an access token
+ * - then sending the browser back to the SPA with them. From the frontend's point of view, OIDC
+ * login and password login end the same way: an {@code AuthResponse}-shaped token pair it can store
+ * and start sending as {@code Authorization: Bearer <token>}.
  */
 @Component
 @RequiredArgsConstructor
@@ -30,6 +31,7 @@ public class OidcAuthenticationSuccessHandler implements AuthenticationSuccessHa
 
   private final UserService userService;
   private final JwtService jwtService;
+  private final RefreshTokenService refreshTokenService;
   private final OidcProperties oidcProperties;
 
   @Override
@@ -54,12 +56,15 @@ public class OidcAuthenticationSuccessHandler implements AuthenticationSuccessHa
             provider, oidcUser.getSubject(), email, firstNameOf(oidcUser), lastNameOf(oidcUser));
 
     Set<String> roles = user.getRoles().stream().map(Enum::name).collect(Collectors.toSet());
-    String token = jwtService.generateAccessToken(user.getId(), user.getEmail(), roles);
+    String accessToken = jwtService.generateAccessToken(user.getId(), user.getEmail(), roles);
+    String refreshToken = refreshTokenService.issue(user).rawToken();
 
     String redirectUri =
         oidcProperties.getFrontendRedirectUri()
             + "#token="
-            + URLEncoder.encode(token, StandardCharsets.UTF_8)
+            + URLEncoder.encode(accessToken, StandardCharsets.UTF_8)
+            + "&refreshToken="
+            + URLEncoder.encode(refreshToken, StandardCharsets.UTF_8)
             + "&expiresIn="
             + jwtService.accessTokenTtlSeconds();
     response.sendRedirect(redirectUri);

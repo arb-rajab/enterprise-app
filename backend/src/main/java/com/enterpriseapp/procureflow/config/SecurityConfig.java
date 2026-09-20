@@ -18,8 +18,6 @@ import org.springframework.security.config.annotation.authentication.configurati
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
@@ -43,6 +41,12 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
  * uses stateless JWTs instead of server-side sessions, and {@code
  * docs/project-memory/adr/0003-frontend-backend-integration.md} for how the Angular dev server is
  * allowed to call this API across origins in local development.
+ *
+ * <p>{@link PasswordEncoderConfig} holds the {@code PasswordEncoder} bean separately from this
+ * class specifically to avoid a circular dependency: this class now constructor-injects {@link
+ * OidcAuthenticationSuccessHandler}, which needs {@code UserService}, which needs a {@code
+ * PasswordEncoder} - if that bean were defined here, Spring couldn't finish constructing this class
+ * before running its own {@code @Bean} method.
  */
 @Configuration
 @EnableMethodSecurity
@@ -54,11 +58,6 @@ public class SecurityConfig {
   private final CorsProperties corsProperties;
   private final OidcAuthenticationSuccessHandler oidcAuthenticationSuccessHandler;
   private final OidcAuthenticationFailureHandler oidcAuthenticationFailureHandler;
-
-  @Bean
-  public PasswordEncoder passwordEncoder() {
-    return new BCryptPasswordEncoder();
-  }
 
   @Bean
   public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration)

@@ -53,6 +53,38 @@ public class UserService {
         .orElseThrow(() -> new ResourceNotFoundException("No user found with email " + email));
   }
 
+  /**
+   * Finds or creates the local user for an OIDC login, linking by email.
+   *
+   * <p>See {@code docs/project-memory/adr/0008-oidc-sso-identity-linking.md} for why this links
+   * onto an existing password-based account with the same email rather than treating OIDC and JWT
+   * logins as separate identities. A brand-new account is provisioned with a random, unguessable
+   * BCrypt hash (never handed to the caller) so the JWT login path needs no null-password special
+   * case for OIDC-only users - it just reports "bad credentials," as it would for any unknown
+   * password.
+   */
+  @Transactional
+  public User findOrProvisionForOidc(
+      String provider, String subject, String email, String firstName, String lastName) {
+    User user =
+        userRepository
+            .findByEmailIgnoreCase(email)
+            .orElseGet(
+                () ->
+                    User.builder()
+                        .email(email.toLowerCase())
+                        .passwordHash(
+                            passwordEncoder.encode(java.util.UUID.randomUUID().toString()))
+                        .firstName(firstName)
+                        .lastName(lastName)
+                        .active(true)
+                        .roles(EnumSet.of(RoleName.ROLE_EMPLOYEE))
+                        .build());
+    user.setOidcProvider(provider);
+    user.setOidcSubject(subject);
+    return userRepository.save(user);
+  }
+
   public List<User> findAll() {
     return userRepository.findAll();
   }

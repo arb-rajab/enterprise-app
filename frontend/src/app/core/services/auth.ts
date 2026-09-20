@@ -39,6 +39,36 @@ export class Auth {
   }
 
   /**
+   * Sends the browser to the backend's OIDC login handshake. A full top-level navigation, not an
+   * HTTP call this service makes - Keycloak's login page has to run in the real browser - so it
+   * returns nothing; the flow finishes back on {@link completeSsoLogin} once the backend redirects
+   * to `/sso/callback` with a token pair, exactly like {@link login} but reached via SSO instead
+   * of a password. See docs/project-memory/adr/0008-oidc-sso-identity-linking.md.
+   */
+  startSsoLogin(): void {
+    window.location.href = '/oauth2/authorization/keycloak';
+  }
+
+  /**
+   * Finishes an SSO login: stores the access/refresh token pair the backend minted (the same
+   * revocable pair a password login gets, per ADR-0006), then fetches the profile the same way a
+   * password login's `AuthResponse.user` would have arrived, so both login paths leave the app in
+   * an identical signed-in state.
+   */
+  completeSsoLogin(accessToken: string, refreshToken: string): Observable<UserSummary> {
+    this.tokenSignal.set(accessToken);
+    this.refreshTokenSignal.set(refreshToken);
+    localStorage.setItem(TOKEN_KEY, accessToken);
+    localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+    return this.http.get<UserSummary>(`${environment.apiBaseUrl}/users/me`).pipe(
+      tap((user) => {
+        localStorage.setItem(USER_KEY, JSON.stringify(user));
+        this.userSignal.set(user);
+      }),
+    );
+  }
+
+  /**
    * Clears the local session immediately and, best-effort, asks the server to revoke the
    * refresh token so it can't be used to mint new access tokens later (see ADR-0006). The
    * revoke call's outcome doesn't block sign-out: a network failure here shouldn't strand the

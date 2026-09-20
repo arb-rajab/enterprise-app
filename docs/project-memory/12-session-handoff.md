@@ -127,3 +127,138 @@ follow-up session should probably tackle them:
    session could only get them to a "should work, unverified" state).
 4. Frontend e2e tests (Playwright) as a follow-up to the current unit-test-only frontend
    coverage.
+
+## Session 4 — OIDC/SSO login (Keycloak), alongside existing JWT auth
+
+_Numbered "Session 4" following Session 3's numbering convention above (Session 3 itself follows
+Session 1 in this file only because the PR #2 session, "Session 2," left no handoff entry of its
+own — see Session 3's note). This session's own branch was created before Session 3's PR (#3)
+merged; see "Real blockers" below for what that caused and how it was fixed._
+
+**What was built:** a second, additional login path — Spring Security `oauth2Login` against a
+real local Keycloak container (`docker-compose.yml`'s `keycloak` service, seeded from
+`keycloak/procureflow-realm.json`) — without touching the existing custom JWT login/register path.
+See `adr/0008-oidc-sso-identity-linking.md` for the identity-linking decision (link by email onto
+an existing JWT-registered account) and its trade-offs, and `06-security.md`'s new OIDC
+subsection. Frontend: a "Sign in with SSO" button on the login page and a new `/sso/callback`
+route that completes the handshake. Same-origin proxying for `/oauth2/**` and `/login/**` added to
+`frontend/nginx.conf` and `frontend/proxy.conf.json`, consistent with ADR-0003.
+
+### Branch / PR
+- Branch: `claude/oidc-sso-spring-security-gj33gg`
+- PR: [#4](https://github.com/arb-rajab/enterprise-app/pull/4)
+- Merge status: open, not yet merged as of this entry; `mergeable_state: clean` (no conflicts), no
+  open review threads, nothing outstanding on this session's side.
+
+### CI status per check
+As of commit `5d738c0` (workflow run 35487866430, the third CI attempt on this PR - see "Real
+blockers" for the two real bugs the first two attempts caught and this session fixed):
+- **Backend (build, test, lint)** — ✅ success. This is `mvn verify`: Surefire unit tests, Failsafe
+  integration tests (including the real-Postgres and real-Keycloak-container ones this sandbox
+  couldn't run), and the Spotless format check, all in one job.
+- **Frontend (build, test, lint)** — ✅ success.
+- **Docker image builds** — ✅ success (both Dockerfiles actually build on a real Docker-enabled
+  runner).
+
+The first two CI attempts on this PR (runs for commits `7154625` and `11b667f`) failed for real
+reasons this session found and fixed - see "Real blockers hit this session" below for both. The
+first ever attempt (before the merge in this session) also hit one transient Maven Central `429`
+unrelated to this PR's code, resolved with one re-run per the repo's flake-handling convention.
+
+### Test counts (as run directly, not just claimed)
+- Backend unit tests: **42/42 passing** (`mvn test`, run directly in this session's sandbox, after
+  merging `origin/main` — see "Real blockers" below), up from 38 as of Session 3's `main` state —
+  2 new ones are `UserServiceOidcProvisioningTest`, covering the create-vs-link decision in
+  isolation; 2 more are `ProcureFlowApplicationContextTest`, which boots the real Spring context
+  against a throwaway in-memory H2 (no Docker) and is what actually caught the circular-dependency
+  and application.yml-shadowing bugs below — `UserServiceOidcProvisioningTest`'s mocked unit tests
+  alone never would have.
+- Backend integration tests: **written (2 new classes: `OidcRedirectIT`, 2 methods;
+  `OidcLoginProvisioningIT`, 2 methods) but not executed in this session's sandbox** — same Docker
+  registry restriction as Session 1 (confirmed again, not just assumed carried over). These spin
+  up a real Keycloak container (`testcontainers-keycloak`, pinned to a version whose transitive
+  `keycloak-admin-client` is `26.0.0`, matching the `quay.io/keycloak/keycloak:26.0` image used
+  everywhere else) and exercise real Keycloak-issued tokens through
+  `UserService.findOrProvisionForOidc` — this is the regression proof that both auth paths coexist
+  without interfering (`OidcLoginProvisioningIT.oidcLoginLinksAnExistingJwtAccountWithoutBreakingItsPasswordLogin`
+  specifically re-asserts the seeded JWT account's password login succeeds before *and* after an
+  OIDC login links onto it). Run in CI on GitHub-hosted runners; see CI status above for the
+  actual result.
+- Frontend unit tests: **50/50 passing** (`ng test`, run directly, after the merge), up from 46 at
+  Session 1 — this session's 4 new ones (`Auth.completeSsoLogin`, `SsoCallback` token-present/
+  token-missing/token-without-refresh-token paths) plus PR #2's refresh-token-handling tests
+  already on `main`.
+- Frontend lint: **0 errors/warnings** (`ng lint`, run directly).
+- Frontend production build: **succeeds** (`ng build --configuration production`, run directly).
+- Backend format check (Spotless): **passing** (`mvn spotless:apply` then `mvn test`, run
+  directly — `mvn verify`'s Spotless `check` goal itself needs the same Docker-gated `verify`
+  phase as the integration tests above, so it's confirmed in CI, not locally).
+
+### Real blockers hit this session
+1. **Docker registry access is still blocked in this sandbox** (same restriction as Session 1) —
+   the new Keycloak-backed integration tests, the `keycloak` docker-compose service, and the
+   Spotless `verify`-phase check could not be executed directly here. Verified in CI instead.
+2. **Two networking subtleties specific to OIDC-behind-Docker**, resolved by design rather than
+   left as an open risk: (a) the browser and the backend container reach Keycloak by different
+   hostnames under docker-compose (`localhost:8180` vs. the `keycloak` service name) — handled by
+   configuring each OAuth2 provider endpoint URI individually instead of one `issuer-uri`, see the
+   comment in `application.yml`; (b) reconstructing the backend's own public base URL (used as the
+   registered OAuth2 `redirect_uri`) from the inbound request depends on nginx forwarding the
+   `Host` header *with its port* — `frontend/nginx.conf`'s new `/oauth2/`/`/login/` blocks use
+   `$http_host`, not `$host`, specifically for this. Neither could be exercised end-to-end in this
+   sandbox (needs the full Compose stack); flagged here for the first real run to confirm.
+3. **This session hit `13-divergent-history-incident.md`'s exact failure mode a third time**: the
+   branch handed to this session (`claude/oidc-sso-spring-security-gj33gg`) already existed on the
+   remote, created against `main` from *before* PR #2 and PR #3 merged (JWT refresh/revocation as
+   ADR-0006, row-level read scoping as ADR-0005, the approval-bypass fix as ADR-0007). This
+   session's own `git fetch origin main` at the very start correctly fetched the *current* `main`,
+   but the pre-existing branch had already diverged from it, and this went unnoticed through this
+   session's entire build-and-test pass (it never re-checked the branch against fresh
+   `origin/main` mid-session) — surfacing only when the opened PR came back `mergeable_state:
+   dirty` and no CI had triggered. Two consequences of the base having moved: (a) this session's
+   new ADR and Flyway migration had picked the same numbers (`0005`, `V3`) that PR #2/#3 had
+   already claimed on `main` for unrelated work — resolved by merging `origin/main` into this
+   branch and renumbering this session's files to the next free slots (`adr/0008-...`,
+   `V5__add_oidc_identity.sql`); (b) the JWT login path had grown refresh-token rotation
+   (ADR-0006) between this branch's creation and its merge, which `OidcAuthenticationSuccessHandler`
+   didn't originally know about — fixed by having it also mint a `RefreshTokenService` refresh
+   token, so an OIDC-originated session is revocable exactly like a password one (see ADR-0008's
+   updated Consequences). Both fixes are in the merge commit on this branch. Worth an explicit
+   callout for `13-divergent-history-incident.md`'s own admin-only recommendations (disabling
+   squash-merge, branch protection): neither would have prevented *this* specific incident, since
+   the cause here was a stale pre-created branch, not a squash-orphaned one — a repo-level "PRs
+   must be up to date with base before merge" branch-protection rule would have, though, by
+   forcing this merge before CI could even run.
+4. **Two real bugs, both only surfaced by CI actually booting the app** — confirming this
+   session's own local `mvn test` genuinely could not have caught either, since unit tests mock
+   their collaborators and never build the real Spring context:
+   - **A circular dependency.** `SecurityConfig` constructor-injects `OidcAuthenticationSuccessHandler`
+     (needed by `oidcFilterChain`), which needs `UserService`, which needs a `PasswordEncoder` — but
+     `PasswordEncoder` was a `@Bean` method defined inside `SecurityConfig` itself, so Spring
+     couldn't finish constructing `SecurityConfig` before running its own factory method. Fixed by
+     moving that bean to a new `PasswordEncoderConfig` class.
+   - **`backend/src/test/resources/application.yml` entirely shadows
+     `backend/src/main/resources/application.yml` during any test run** (a pre-existing repo fact,
+     not something this session introduced - Maven puts `target/test-classes` ahead of
+     `target/classes` on the test classpath, so Spring Boot's config-data loading finds the test
+     one first and never merges in the main one; this is *why* `AbstractIntegrationTest` has to
+     supply datasource config via `@DynamicPropertySource` instead of relying on
+     `application.yml`'s defaults). This session's new OIDC client-registration config, added only
+     to the main file, was therefore invisible in every test - not just the OIDC-specific ones,
+     since `SecurityConfig.oidcFilterChain()` unconditionally calls `.oauth2Login(...)`, so *every*
+     test's Spring context failed to start. Fixed by adding the equivalent static registration
+     config to the test-scoped file too, with a comment explaining why it's there.
+   - Both were root-caused **locally**, without Docker, by writing a throwaway diagnostic (kept as
+     the permanent `ProcureFlowApplicationContextTest`) that boots the real Spring context against
+     an in-memory H2 database instead of Testcontainers Postgres — proving this class of bug
+     doesn't actually require Docker to catch fast, and should have been in place from the start
+     rather than only added reactively after two failed CI runs.
+5. Everything else (Maven Central — including the new `spring-boot-starter-oauth2-client` and
+   `testcontainers-keycloak` dependencies, confirmed resolvable — and the npm registry) was
+   reachable normally.
+
+### What's left in the backlog for a future session
+1. Confirm the two docker-compose networking points above actually work end-to-end on a real
+   Docker host (this session could only verify them by design review, not execution).
+2. An unlink-SSO-identity flow — see `adr/0008-oidc-sso-identity-linking.md` consequences.
+3. Everything already listed in Session 1's list above, unchanged by this session's work.

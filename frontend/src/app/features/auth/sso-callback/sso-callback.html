@@ -1,0 +1,12 @@
+<div class="page auth-page">
+  <div class="card auth-card">
+    @if (errorMessage()) {
+      <h1>Sign-in failed</h1>
+      <p class="error-text">{{ errorMessage() }}</p>
+      <p class="muted"><a routerLink="/login">Back to sign in</a></p>
+    } @else {
+      <h1>Signing you in…</h1>
+      <p class="muted">Completing SSO sign-in.</p>
+    }
+  </div>
+</div>

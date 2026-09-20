@@ -58,7 +58,7 @@
 
 ## Explicit non-requirements (see `09-backlog.md` for why these are deferred, not forgotten)
 
-- Multi-tenancy, SSO/OIDC federation, password reset via email, real payment processing,
+- Multi-tenancy, password reset via email, real payment processing,
   file/attachment uploads on requisitions, notifications, and pagination on list endpoints
   (every `findAll` returns the full result set — acceptable at demo data volumes, tracked as a
   known gap in `09-backlog.md`).

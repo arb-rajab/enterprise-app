@@ -19,7 +19,7 @@ amount. See `docs/project-memory/01-brief.md` and `docs/project-memory/adr/0004-
 | Backend | Spring Boot 3, Java 21, Spring Security (JWT), Spring Data JPA, Flyway |
 | Frontend | Angular 20 (standalone components, signals), Reactive Forms |
 | Database | PostgreSQL 16 |
-| Auth | Stateless JWT, BCrypt password hashing |
+| Auth | Stateless JWT + BCrypt (password login), Spring Security OIDC login against a local Keycloak (SSO) |
 | Tests | JUnit 5 / Mockito / AssertJ + Testcontainers (backend), Jasmine/Karma (frontend) |
 | Containers | Multi-stage, non-root Docker images for both apps |
 | CI | GitHub Actions — build, test, lint, Docker image build, for both sides |
@@ -46,12 +46,23 @@ screen itself — see `docs/project-memory/06-security.md`):
 | finance@procureflow.test | Finance Approver |
 | employee@procureflow.test | Employee (Engineering) |
 
+### SSO login
+The login screen's "Sign in with SSO" button goes through a real, local Keycloak instance (no
+real Google/Okta/Microsoft anywhere in this project — see `keycloak/README.md`). Two seeded
+Keycloak users, both password `Password123!`:
+
+| Email | What it demonstrates |
+| --- | --- |
+| sso.newhire@procureflow.test | Provisions a brand-new local account via SSO |
+| manager@procureflow.test | Links onto the existing JWT-registered "manager" account — see `docs/project-memory/adr/0008-oidc-sso-identity-linking.md` |
+
 ### Local development (without full Docker rebuilds)
 ```bash
-# Backend — needs a reachable Postgres (e.g. `docker compose up postgres`)
+# Backend — needs a reachable Postgres, and Keycloak if you want to exercise SSO login
+docker compose up postgres keycloak
 cd backend && mvn spring-boot:run
 
-# Frontend — proxies /api to localhost:8080 (see frontend/proxy.conf.json)
+# Frontend — proxies /api, /oauth2, and /login to localhost:8080 (see frontend/proxy.conf.json)
 cd frontend && npm start
 ```
 

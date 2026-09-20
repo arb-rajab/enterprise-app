@@ -16,6 +16,15 @@
 - The signing secret (`app.security.jwt.secret` / `JWT_SECRET` env var) is required, checked to
   be ≥ 256 bits at `JwtService` construction, and the app **fails to start** without it outside
   the `dev` profile default. There is no hardcoded production secret anywhere in the codebase.
+- **OIDC/SSO login** (Spring Security `oauth2Login`, against a local Keycloak container) exists
+  as a second, additional way to reach an authenticated session - not a replacement for the two
+  points above. `OidcAuthenticationSuccessHandler` provisions/links a local user (by email; see
+  `adr/0008-oidc-sso-identity-linking.md` for the full identity-linking decision and its
+  trade-offs) and mints the *same* JWT `JwtService` issues for password logins, so everything
+  downstream of login - authorization, row-level checks, the token format itself - is identical
+  regardless of which path was used. The OIDC handshake runs on its own `SecurityFilterChain`
+  (`oidcFilterChain`, session-based, matching only `/oauth2/**` and `/login/**`); the JWT API
+  chain (`apiFilterChain`) is untouched and stays fully stateless.
 
 ## Authorization
 - Method-level `@PreAuthorize` on controllers for role checks (`hasRole(...)` /
@@ -86,6 +95,11 @@
   variable names only, with placeholder values. `docker-compose.yml`'s `backend` service uses
   Compose's `${VAR:?error message}` syntax for `JWT_SECRET` specifically so that forgetting to
   set it is a loud, immediate failure, not a silent fallback to an insecure default.
+- The Keycloak client secret (`OIDC_CLIENT_SECRET`) is the one deliberate exception: it has a
+  fixed, committed dev-only default (`procureflow-dev-secret`, matching
+  `keycloak/procureflow-realm.json`), because it's a secret shared between this repo's own two
+  local services, not a real credential for anything - see `keycloak/README.md`. It follows the
+  same "never a real production default" rule as the seed-data password in the point above.
 
 ## What a real production hardening pass would still need to add
 (Explicitly deferred — see `09-backlog.md` for the full list with reasoning per item.)

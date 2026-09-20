@@ -30,9 +30,11 @@ with its own layers, rather than by technical layer across the whole app:
 ```
 
 Cross-cutting concerns live in `common/` (base entity, exceptions, global error handler),
-`config/` (Spring `@Configuration` classes), and `security/` (JWT issuance/validation, the
-`UserDetailsService` adapter). `audit/` is a small cross-feature service every workflow-mutating
-method calls into.
+`config/` (Spring `@Configuration` classes, including the two `SecurityFilterChain`s in
+`SecurityConfig`), and `security/` (JWT issuance/validation, the `UserDetailsService` adapter, and
+the OIDC success/failure handlers that finish an SSO login by minting the same JWT — see
+`adr/0008-oidc-sso-identity-linking.md`). `audit/` is a small cross-feature service every
+workflow-mutating method calls into.
 
 This structure was chosen (over a strict `controller/`, `service/`, `repository/` layering
 across the whole app) because it keeps everything about one concept — e.g. a Purchase

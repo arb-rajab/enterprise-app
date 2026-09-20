@@ -57,6 +57,14 @@ public class User extends BaseEntity {
   @Builder.Default
   private Set<RoleName> roles = new HashSet<>();
 
+  /** Non-null once this user has signed in via OIDC at least once, e.g. {@code "keycloak"}. */
+  @Column(name = "oidc_provider", length = 60)
+  private String oidcProvider;
+
+  /** The IdP's stable subject (`sub` claim) for this user, unique per {@link #oidcProvider}. */
+  @Column(name = "oidc_subject")
+  private String oidcSubject;
+
   public String getFullName() {
     return firstName + " " + lastName;
   }

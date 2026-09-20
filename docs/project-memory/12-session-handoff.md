@@ -80,7 +80,7 @@ route that completes the handshake. Same-origin proxying for `/oauth2/**` and `/
 
 ### Branch / PR
 - Branch: `claude/oidc-sso-spring-security-gj33gg`
-- PR: _filled in below once opened_
+- PR: [#4](https://github.com/arb-rajab/enterprise-app/pull/4)
 - Merge status: _filled in below once resolved_
 
 ### CI status per check

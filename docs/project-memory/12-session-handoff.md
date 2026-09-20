@@ -147,10 +147,23 @@ route that completes the handshake. Same-origin proxying for `/oauth2/**` and `/
 ### Branch / PR
 - Branch: `claude/oidc-sso-spring-security-gj33gg`
 - PR: [#4](https://github.com/arb-rajab/enterprise-app/pull/4)
-- Merge status: _filled in below once resolved_
+- Merge status: open, not yet merged as of this entry; `mergeable_state: clean` (no conflicts), no
+  open review threads, nothing outstanding on this session's side.
 
 ### CI status per check
-_Filled in below once the PR's CI has actually run — not claimed in advance._
+As of commit `5d738c0` (workflow run 35487866430, the third CI attempt on this PR - see "Real
+blockers" for the two real bugs the first two attempts caught and this session fixed):
+- **Backend (build, test, lint)** — ✅ success. This is `mvn verify`: Surefire unit tests, Failsafe
+  integration tests (including the real-Postgres and real-Keycloak-container ones this sandbox
+  couldn't run), and the Spotless format check, all in one job.
+- **Frontend (build, test, lint)** — ✅ success.
+- **Docker image builds** — ✅ success (both Dockerfiles actually build on a real Docker-enabled
+  runner).
+
+The first two CI attempts on this PR (runs for commits `7154625` and `11b667f`) failed for real
+reasons this session found and fixed - see "Real blockers hit this session" below for both. The
+first ever attempt (before the merge in this session) also hit one transient Maven Central `429`
+unrelated to this PR's code, resolved with one re-run per the repo's flake-handling convention.
 
 ### Test counts (as run directly, not just claimed)
 - Backend unit tests: **42/42 passing** (`mvn test`, run directly in this session's sandbox, after

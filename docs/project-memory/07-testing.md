@@ -3,8 +3,12 @@
 ## Backend
 
 ### Unit tests (JUnit 5 + Mockito + AssertJ), run by `mvn test`
-No database, no Spring context — pure business logic against mocked repositories/collaborators.
-40 tests across:
+42 tests across (40 pure business logic against mocked repositories/collaborators, no database or
+Spring context involved; 2 more actually boot the real Spring context against a throwaway
+in-memory H2 database — no Docker needed, so this still runs in `mvn test`, and it's the reason
+two real wiring bugs (a circular bean dependency, and `application.yml` being entirely shadowed by
+a same-named file in `src/test/resources`) were caught before merge instead of only in CI's
+Testcontainers-backed `mvn verify`):
 
 - `ApprovalWorkflowPolicyTest` — every threshold boundary (999.99 / 1000.00 / 1000.01 / 10000.00
   / 10000.01) resolves to the exact expected approval chain.
@@ -31,6 +35,10 @@ No database, no Spring context — pure business logic against mocked repositori
   random unguessable password hash; an email matching an existing JWT-registered user links onto
   it (same object, same roles) **without** re-encoding or touching that user's existing password
   hash.
+- `ProcureFlowApplicationContextTest` — `contextLoads()` (the whole bean graph, both
+  `SecurityConfig` filter chains and the OIDC handlers included, wires up without error) and
+  `keycloakClientRegistrationIsConfigured()` (a real, non-blank `ClientRegistrationRepository`
+  entry for "keycloak" is actually bound from config, not silently empty).
 
 ### Integration tests (JUnit 5 + Spring Boot Test + Testcontainers), run by `mvn verify`
 Real HTTP requests via `MockMvc`, a **real PostgreSQL 16** container (Testcontainers), and the
@@ -78,7 +86,7 @@ pulls Testcontainers needs (`docker pull postgres:16-alpine` returns `403`/`429`
 registry tried: Docker Hub, an ECR public mirror). They **are** exercised by
 `.github/workflows/ci.yml`'s `backend` job on GitHub-hosted runners, which have unrestricted
 registry access; that CI run is the actual verification of record for these tests, not a claim
-made in this document. `mvn test` (unit tests) *was* run directly in the sandbox and all 40 pass.
+made in this document. `mvn test` (unit tests) *was* run directly in the sandbox and all 42 pass.
 
 ### Format/lint
 `mvn verify` also runs Spotless (Google Java Format) in `check` mode — the build fails on

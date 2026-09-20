@@ -153,10 +153,13 @@ route that completes the handshake. Same-origin proxying for `/oauth2/**` and `/
 _Filled in below once the PR's CI has actually run — not claimed in advance._
 
 ### Test counts (as run directly, not just claimed)
-- Backend unit tests: **40/40 passing** (`mvn test`, run directly in this session's sandbox, after
+- Backend unit tests: **42/42 passing** (`mvn test`, run directly in this session's sandbox, after
   merging `origin/main` — see "Real blockers" below), up from 38 as of Session 3's `main` state —
-  the 2 new ones are `UserServiceOidcProvisioningTest`, covering the create-vs-link decision in
-  isolation, no Docker involved.
+  2 new ones are `UserServiceOidcProvisioningTest`, covering the create-vs-link decision in
+  isolation; 2 more are `ProcureFlowApplicationContextTest`, which boots the real Spring context
+  against a throwaway in-memory H2 (no Docker) and is what actually caught the circular-dependency
+  and application.yml-shadowing bugs below — `UserServiceOidcProvisioningTest`'s mocked unit tests
+  alone never would have.
 - Backend integration tests: **written (2 new classes: `OidcRedirectIT`, 2 methods;
   `OidcLoginProvisioningIT`, 2 methods) but not executed in this session's sandbox** — same Docker
   registry restriction as Session 1 (confirmed again, not just assumed carried over). These spin
@@ -213,7 +216,31 @@ _Filled in below once the PR's CI has actually run — not claimed in advance._
    the cause here was a stale pre-created branch, not a squash-orphaned one — a repo-level "PRs
    must be up to date with base before merge" branch-protection rule would have, though, by
    forcing this merge before CI could even run.
-4. Everything else (Maven Central — including the new `spring-boot-starter-oauth2-client` and
+4. **Two real bugs, both only surfaced by CI actually booting the app** — confirming this
+   session's own local `mvn test` genuinely could not have caught either, since unit tests mock
+   their collaborators and never build the real Spring context:
+   - **A circular dependency.** `SecurityConfig` constructor-injects `OidcAuthenticationSuccessHandler`
+     (needed by `oidcFilterChain`), which needs `UserService`, which needs a `PasswordEncoder` — but
+     `PasswordEncoder` was a `@Bean` method defined inside `SecurityConfig` itself, so Spring
+     couldn't finish constructing `SecurityConfig` before running its own factory method. Fixed by
+     moving that bean to a new `PasswordEncoderConfig` class.
+   - **`backend/src/test/resources/application.yml` entirely shadows
+     `backend/src/main/resources/application.yml` during any test run** (a pre-existing repo fact,
+     not something this session introduced - Maven puts `target/test-classes` ahead of
+     `target/classes` on the test classpath, so Spring Boot's config-data loading finds the test
+     one first and never merges in the main one; this is *why* `AbstractIntegrationTest` has to
+     supply datasource config via `@DynamicPropertySource` instead of relying on
+     `application.yml`'s defaults). This session's new OIDC client-registration config, added only
+     to the main file, was therefore invisible in every test - not just the OIDC-specific ones,
+     since `SecurityConfig.oidcFilterChain()` unconditionally calls `.oauth2Login(...)`, so *every*
+     test's Spring context failed to start. Fixed by adding the equivalent static registration
+     config to the test-scoped file too, with a comment explaining why it's there.
+   - Both were root-caused **locally**, without Docker, by writing a throwaway diagnostic (kept as
+     the permanent `ProcureFlowApplicationContextTest`) that boots the real Spring context against
+     an in-memory H2 database instead of Testcontainers Postgres — proving this class of bug
+     doesn't actually require Docker to catch fast, and should have been in place from the start
+     rather than only added reactively after two failed CI runs.
+5. Everything else (Maven Central — including the new `spring-boot-starter-oauth2-client` and
    `testcontainers-keycloak` dependencies, confirmed resolvable — and the npm registry) was
    reachable normally.
 

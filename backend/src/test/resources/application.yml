@@ -1,3 +1,34 @@
+# This file SHADOWS backend/src/main/resources/application.yml entirely during `mvn test`/`mvn
+# verify` - Maven puts target/test-classes ahead of target/classes on the test classpath, so
+# Spring Boot's config-data loading finds THIS "application.yml" first and never merges in the
+# main one. That's why datasource/JPA/Flyway config isn't repeated here (AbstractIntegrationTest
+# supplies it via @DynamicPropertySource) - but the OIDC client registration below has no
+# per-test dynamic override for a plain (non-Keycloak) integration test class, so without a copy
+# here, `SecurityConfig.oidcFilterChain()`'s unconditional `.oauth2Login(...)` has no
+# ClientRegistrationRepository to find and the whole context fails to start, for every test, not
+# just the OIDC ones. Keep this block's registration id/keys in sync with the real one.
+spring:
+  security:
+    oauth2:
+      client:
+        registration:
+          keycloak:
+            client-id: procureflow-backend
+            client-secret: procureflow-dev-secret
+            authorization-grant-type: authorization_code
+            scope: openid,profile,email
+            redirect-uri: '{baseUrl}/login/oauth2/code/{registrationId}'
+        provider:
+          keycloak:
+            # Harmless, unreachable placeholders: AbstractOidcIntegrationTest overrides all four
+            # via @DynamicPropertySource to point at the real Testcontainers Keycloak for the
+            # tests that actually need it; every other test never calls anything that resolves
+            # these URLs.
+            authorization-uri: http://localhost:8180/realms/procureflow/protocol/openid-connect/auth
+            token-uri: http://localhost:8180/realms/procureflow/protocol/openid-connect/token
+            jwk-set-uri: http://localhost:8180/realms/procureflow/protocol/openid-connect/certs
+            user-info-uri: http://localhost:8180/realms/procureflow/protocol/openid-connect/userinfo
+
 app:
   security:
     jwt:

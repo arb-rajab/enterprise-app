@@ -10,8 +10,11 @@ Deferred work, each with the reason it was deferred rather than a bare TODO.
 - **JWT revocation / refresh-token rotation.** `app.security.jwt.refresh-token-ttl-days` exists
   as a placeholder config value; no refresh flow is implemented. See ADR-0002.
 - **Rate limiting and account lockout** on `/api/v1/auth/**`.
-- **OIDC/SSO federation** for a real multi-app enterprise estate, instead of self-issued JWTs —
-  see ADR-0002's alternatives-considered section for why this was out of scope for this pass.
+- ~~OIDC/SSO federation~~ — done, see `adr/0005-oidc-sso-identity-linking.md`. What's still
+  deferred from that work: an **unlink-SSO-identity flow** (there's no way to clear a user's
+  `oidc_provider`/`oidc_subject` and force password-only login again), and revisiting the
+  link-by-email assumption if this ever needs to support two real people legitimately sharing one
+  email address (see that ADR's alternatives-considered section).
 - **Role changes take effect only on next login** (roles are baked into the JWT at issuance) —
   would need either short-TTL tokens with mandatory refresh, or a per-request role lookup that
   trades away the "no DB hit per request" property ADR-0002 chose.

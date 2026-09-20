@@ -36,6 +36,33 @@ export class Auth {
       .pipe(tap((response) => this.applySession(response)));
   }
 
+  /**
+   * Sends the browser to the backend's OIDC login handshake. A full top-level navigation, not an
+   * HTTP call this service makes - Keycloak's login page has to run in the real browser - so it
+   * returns nothing; the flow finishes back on {@link completeSsoLogin} once the backend redirects
+   * to `/sso/callback` with a token, exactly like {@link login} but reached via SSO instead of a
+   * password. See docs/project-memory/adr/0005-oidc-sso-identity-linking.md.
+   */
+  startSsoLogin(): void {
+    window.location.href = '/oauth2/authorization/keycloak';
+  }
+
+  /**
+   * Finishes an SSO login: stores the access token the backend minted, then fetches the profile
+   * the same way a password login's `AuthResponse.user` would have arrived, so both login paths
+   * leave the app in an identical signed-in state.
+   */
+  completeSsoLogin(accessToken: string): Observable<UserSummary> {
+    this.tokenSignal.set(accessToken);
+    localStorage.setItem(TOKEN_KEY, accessToken);
+    return this.http.get<UserSummary>(`${environment.apiBaseUrl}/users/me`).pipe(
+      tap((user) => {
+        localStorage.setItem(USER_KEY, JSON.stringify(user));
+        this.userSignal.set(user);
+      }),
+    );
+  }
+
   logout(): void {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);

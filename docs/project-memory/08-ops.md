@@ -9,9 +9,11 @@ docker compose up --build
 # backend:  http://localhost:8080  (Swagger UI: /swagger-ui.html)
 ```
 
-`docker-compose.yml` runs three services: `postgres` (with a healthcheck gating backend startup),
-`backend` (waits for Postgres to be healthy, runs Flyway migrations automatically on boot), and
-`frontend` (nginx, proxies `/api` to `backend` — see `adr/0003-frontend-backend-integration.md`).
+`docker-compose.yml` runs four services: `postgres` (with a healthcheck gating backend startup),
+`keycloak` (a real, local, dev-only OIDC provider — see `keycloak/README.md` and
+`adr/0005-oidc-sso-identity-linking.md`, also healthcheck-gated), `backend` (waits for both to be
+healthy, runs Flyway migrations automatically on boot), and `frontend` (nginx, proxies `/api`,
+`/oauth2`, and `/login` to `backend` — see `adr/0003-frontend-backend-integration.md`).
 
 For active backend development without rebuilding the container each time:
 ```bash
@@ -28,6 +30,10 @@ cd frontend && npm start            # ng serve, proxies /api to localhost:8080 v
 | `JWT_ACCESS_TTL_MINUTES` | backend | No (default 30) | |
 | `CORS_ALLOWED_ORIGINS` | backend | No (default `http://localhost:4200`) | Only matters for direct `ng serve` calls, see ADR-0003 |
 | `SPRING_PROFILES_ACTIVE` | backend | No (default `dev`) | Set to `prod` for production-style logging/behavior |
+| `OIDC_CLIENT_SECRET` | backend | No (default `procureflow-dev-secret`) | Dev-only, matches `keycloak/procureflow-realm.json` — see `06-security.md` |
+| `OIDC_AUTHORIZATION_URI` | backend | No (default `http://localhost:8180/...`) | Must be reachable by the **browser** — see `adr/0005-oidc-sso-identity-linking.md` |
+| `OIDC_TOKEN_URI`, `OIDC_JWKS_URI`, `OIDC_USERINFO_URI` | backend | No (default `http://localhost:8180/...`) | Must be reachable by the **backend**; docker-compose overrides these to the `keycloak` service name |
+| `OIDC_FRONTEND_REDIRECT_URI` | backend | No (default `http://localhost:4200/sso/callback`) | Where the browser lands after OIDC login; docker-compose overrides to `http://localhost:8081/sso/callback` |
 
 ## Health checks
 - Backend: Spring Boot Actuator, `/actuator/health/liveness` and `/actuator/health/readiness`

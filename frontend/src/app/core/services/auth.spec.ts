@@ -67,4 +67,21 @@ describe('Auth', () => {
     expect(service.hasAnyRole('ROLE_EMPLOYEE', 'ROLE_ADMIN')).toBeTrue();
     expect(service.hasAnyRole('ROLE_ADMIN')).toBeFalse();
   });
+
+  it('completeSsoLogin stores the token immediately and the profile once /users/me responds', () => {
+    service.completeSsoLogin('an-sso-token').subscribe();
+
+    // The token (and its Authorization header, via authInterceptor) must be usable right away -
+    // it is set synchronously, before the /users/me call that fetches the profile even resolves.
+    expect(service.isAuthenticated()).toBeTrue();
+    expect(localStorage.getItem('procureflow.accessToken')).toBe('an-sso-token');
+
+    const req = httpMock.expectOne('/api/v1/users/me');
+    req.flush(sampleResponse.user);
+
+    expect(service.currentUser()?.email).toBe('employee@procureflow.test');
+    expect(JSON.parse(localStorage.getItem('procureflow.currentUser')!).email).toBe(
+      'employee@procureflow.test',
+    );
+  });
 });

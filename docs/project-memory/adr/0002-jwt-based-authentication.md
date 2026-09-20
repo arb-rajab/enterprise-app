@@ -1,7 +1,8 @@
 # ADR-0002: Stateless JWT authentication over server-side sessions
 
 ## Status
-Accepted
+Accepted. Extended (not superseded) by `adr/0005-oidc-sso-identity-linking.md`, which adds OIDC
+login as an additional path alongside everything decided below.
 
 ## Context
 The API needs to authenticate the Angular SPA and authorize requests against five roles. The two

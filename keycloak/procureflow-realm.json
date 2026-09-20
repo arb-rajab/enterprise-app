@@ -1,0 +1,51 @@
+{
+  "realm": "procureflow",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "loginTheme": "keycloak",
+  "clients": [
+    {
+      "clientId": "procureflow-backend",
+      "name": "ProcureFlow backend",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "procureflow-dev-secret",
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "http://localhost:8080/login/oauth2/code/keycloak",
+        "http://localhost:8081/login/oauth2/code/keycloak"
+      ],
+      "webOrigins": [],
+      "fullScopeAllowed": true
+    }
+  ],
+  "users": [
+    {
+      "username": "sso.newhire@procureflow.test",
+      "email": "sso.newhire@procureflow.test",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "Sasha",
+      "lastName": "Newhire",
+      "credentials": [
+        { "type": "password", "value": "Password123!", "temporary": false }
+      ]
+    },
+    {
+      "username": "manager@procureflow.test",
+      "email": "manager@procureflow.test",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "Morgan",
+      "lastName": "Manager",
+      "credentials": [
+        { "type": "password", "value": "Password123!", "temporary": false }
+      ]
+    }
+  ]
+}

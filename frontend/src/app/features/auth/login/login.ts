@@ -41,4 +41,8 @@ export class Login {
       },
     });
   }
+
+  signInWithSso(): void {
+    this.auth.startSsoLogin();
+  }
 }

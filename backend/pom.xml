@@ -23,6 +23,7 @@
         <springdoc.version>2.6.0</springdoc.version>
         <testcontainers.version>1.20.2</testcontainers.version>
         <spotless.version>2.43.0</spotless.version>
+        <testcontainers-keycloak.version>3.5.1</testcontainers-keycloak.version>
     </properties>
 
     <dependencies>
@@ -37,6 +38,10 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-oauth2-client</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -116,6 +121,14 @@
             <groupId>org.testcontainers</groupId>
             <artifactId>postgresql</artifactId>
             <version>${testcontainers.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <!-- Real, local Keycloak container for OIDC integration tests - see
+                 docs/project-memory/adr/0005-oidc-sso-identity-linking.md. -->
+            <groupId>com.github.dasniko</groupId>
+            <artifactId>testcontainers-keycloak</artifactId>
+            <version>${testcontainers-keycloak.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

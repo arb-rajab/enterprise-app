@@ -13,6 +13,11 @@ export const routes: Routes = [
     loadComponent: () => import('./features/auth/register/register').then((m) => m.Register),
   },
   {
+    path: 'sso/callback',
+    loadComponent: () =>
+      import('./features/auth/sso-callback/sso-callback').then((m) => m.SsoCallback),
+  },
+  {
     path: 'dashboard',
     canActivate: [authGuard],
     loadComponent: () => import('./features/dashboard/dashboard').then((m) => m.Dashboard),

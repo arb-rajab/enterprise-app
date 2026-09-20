@@ -1,5 +1,42 @@
 # Release Notes
 
+## v0.2.0 — OIDC/SSO login (Keycloak), alongside existing JWT auth
+
+**Backend**
+- Spring Security `oauth2Login` against a real, local, open-source Keycloak instance
+  (`docker-compose.yml`'s `keycloak` service, seeded from `keycloak/procureflow-realm.json`) — an
+  *additional* login path, not a replacement for the existing JWT register/login. See
+  `adr/0005-oidc-sso-identity-linking.md` for the identity-linking decision (an OIDC login with an
+  email matching an existing JWT-registered account links onto it, by design, rather than creating
+  a second disconnected identity) and `06-security.md` for the updated security posture.
+- A successful OIDC login mints the same app JWT the password path issues, via the same
+  `JwtService` — the two paths are indistinguishable to everything downstream of login
+  (authorization, row-level checks, the token format itself).
+- New `oidcFilterChain` (session-based, `/oauth2/**` + `/login/**` only) added alongside the
+  existing, unchanged, fully stateless `apiFilterChain`.
+- 2 new unit tests (`UserServiceOidcProvisioningTest`) and 2 new integration test classes (4 test
+  methods total) against a real Testcontainers-provisioned Keycloak, including a direct regression
+  test that linking an OIDC identity onto an existing account doesn't break that account's
+  password login.
+
+**Frontend**
+- A "Sign in with SSO" button on the login page and a new `/sso/callback` route completing the
+  handshake; 3 new unit tests.
+
+**Platform**
+- `docker-compose.yml` gains a `keycloak` service; `frontend/nginx.conf` and
+  `frontend/proxy.conf.json` proxy `/oauth2/**` and `/login/**` to the backend, same same-origin
+  pattern as `/api/**` (ADR-0003).
+
+### Known limitations introduced by this release
+See `adr/0005-oidc-sso-identity-linking.md`'s Consequences section and the updated
+`09-backlog.md`: no unlink-SSO-identity flow, and the link-by-email assumption doesn't support two
+real people legitimately sharing one email address.
+
+### Verification status
+See `12-session-handoff.md` Session 2 for the actual CI outcome and test counts as verified (or
+explicitly not verifiable in-sandbox) at merge time for this release.
+
 ## v0.1.0 — Initial architecture and core scaffold
 
 First release. Establishes the full stack end-to-end rather than one slice at a time:

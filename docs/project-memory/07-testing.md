@@ -4,7 +4,7 @@
 
 ### Unit tests (JUnit 5 + Mockito + AssertJ), run by `mvn test`
 No database, no Spring context — pure business logic against mocked repositories/collaborators.
-20 tests across:
+22 tests across:
 
 - `ApprovalWorkflowPolicyTest` — every threshold boundary (999.99 / 1000.00 / 1000.01 / 10000.00
   / 10000.01) resolves to the exact expected approval chain.
@@ -15,6 +15,11 @@ No database, no Spring context — pure business logic against mocked repositori
   rejected, missing/too-short secrets fail fast at construction.
 - `DepartmentServiceTest`, `VendorServiceTest` — duplicate-code rejection, state-transition
   guards (e.g. can't approve a vendor that isn't `PENDING_APPROVAL`).
+- `UserServiceOidcProvisioningTest` — the identity-linking decision from
+  `adr/0005-oidc-sso-identity-linking.md` in isolation: a new email provisions a new user with a
+  random unguessable password hash; an email matching an existing JWT-registered user links onto
+  it (same object, same roles) **without** re-encoding or touching that user's existing password
+  hash.
 
 ### Integration tests (JUnit 5 + Spring Boot Test + Testcontainers), run by `mvn verify`
 Real HTTP requests via `MockMvc`, a **real PostgreSQL 16** container (Testcontainers), and the
@@ -29,6 +34,17 @@ shared `@Testcontainers` Postgres container and wires its JDBC URL into the Spri
   officer approves (both required at this amount — see ADR-0004), the requisition reaches
   `APPROVED`, gets converted to a Purchase Order, and an unrelated role (an employee approving
   their own requisition) is correctly rejected with 409.
+- `OidcRedirectIT`, `OidcLoginProvisioningIT` — `AbstractOidcIntegrationTest` adds a second,
+  singleton-pattern Testcontainer: a real Keycloak (`testcontainers-keycloak`), seeded from the
+  exact realm import `docker-compose.yml`'s `keycloak` service also uses
+  (`keycloak/procureflow-realm.json`, copied to this module's test resources). `OidcRedirectIT`
+  proves `/oauth2/authorization/keycloak` redirects to that real container (not a stub) and that
+  the JWT API chain is unaffected by the new OIDC chain existing. `OidcLoginProvisioningIT` is the
+  regression proof both auth paths coexist: it fetches a **real, Keycloak-signed token** (via the
+  password grant, enabled only on this dev-only realm's client for exactly this purpose — see
+  `keycloak/README.md`) for a brand-new email and asserts a user gets provisioned; then, for an
+  email matching a seeded JWT account, asserts the OIDC login links onto it **and** that account's
+  original password login still succeeds both before and after linking.
 
 **Convention:** unit tests are named `*Test.java` (Surefire, no external dependencies, runs on
 every `mvn test`); integration tests are named `*IT.java` (Failsafe, bound to the
@@ -41,7 +57,7 @@ pulls Testcontainers needs (`docker pull postgres:16-alpine` returns `403`/`429`
 registry tried: Docker Hub, an ECR public mirror). They **are** exercised by
 `.github/workflows/ci.yml`'s `backend` job on GitHub-hosted runners, which have unrestricted
 registry access; that CI run is the actual verification of record for these tests, not a claim
-made in this document. `mvn test` (unit tests) *was* run directly in the sandbox and all 20 pass.
+made in this document. `mvn test` (unit tests) *was* run directly in the sandbox and all 22 pass.
 
 ### Format/lint
 `mvn verify` also runs Spotless (Google Java Format) in `check` mode — the build fails on
@@ -50,10 +66,15 @@ unformatted code, not just warns. `mvn spotless:apply` reformats in place.
 ## Frontend
 
 ### Unit tests (Jasmine + Karma), run by `ng test`
-46 tests, headless Chrome. Notable coverage beyond the generated boilerplate:
+49 tests, headless Chrome. Notable coverage beyond the generated boilerplate:
 
 - `Auth` — login/logout persist and clear the token+user (and `localStorage`), `hasAnyRole`
-  checks against the current user's roles.
+  checks against the current user's roles, and `completeSsoLogin` (the SSO login path — stores
+  the token synchronously, then fetches/stores the profile from `/users/me`, exactly like a
+  password login's `AuthResponse.user`).
+- `SsoCallback` — the token-in-URL-fragment happy path (stores the token, navigates to the
+  dashboard once the profile loads) and the missing-token/error path (shows an error, makes no
+  API call).
 - `authGuard` / `roleGuard` — both branches of each (allowed vs. redirected), including the
   "route declares no required roles" pass-through case.
 - `authInterceptor` — attaches `Authorization: Bearer <token>` when a token exists, leaves the
@@ -72,7 +93,7 @@ Run locally: `CHROME_BIN=<path-to-chromium> npx ng test --no-watch --browsers=Ch
 (a `ChromeHeadlessCI` launcher with `--no-sandbox` is defined in `karma.conf.js` specifically
 because both this sandbox and typical CI runners execute as root, and Chrome refuses to sandbox
 itself as root without that flag). CI resolves `CHROME_BIN` via the `browser-actions/setup-chrome`
-action. All 46 tests were run and pass directly in the sandbox that built this project (Playwright's
+action. All 49 tests were run and pass directly in the sandbox that built this project (Playwright's
 bundled Chromium at `/opt/pw-browsers/chromium` was reused for this — no extra browser download
 was needed).
 

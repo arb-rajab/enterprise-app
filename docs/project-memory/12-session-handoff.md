@@ -1,5 +1,83 @@
 # Session Handoff
 
+## Session 5 — gRPC purchase-order status API, sharing REST's JWT auth and read-scoping
+
+**Starting state verified:** `git fetch origin main` was run before any change. The pre-existing
+local/remote branch `claude/grpc-api-shared-auth-v1spgw` was found to be 14 commits behind
+`origin/main` (missing, among others, PR #3's approval-bypass fix, PR #4's OIDC/SSO work, and the
+ADRs/migrations both introduced) — the exact failure mode `13-divergent-history-incident.md`
+describes. Fixed by `git rebase origin/main` before any new work, rather than building on the
+stale base and discovering the divergence later (as Session 4 did).
+
+**What was built:** a read-only gRPC API, `PurchaseOrderGrpcService` (unary `GetPurchaseOrder`,
+server-streaming `ListPurchaseOrders`), the first non-REST API surface in this project. See
+`adr/0009-grpc-purchase-order-api.md` for the full rationale, in particular why this narrow,
+read-heavy slice was chosen over mirroring every REST endpoint, and why authorization is shared
+rather than reimplemented: a new `GrpcAuthInterceptor` validates the bearer token with the same
+`JwtService` REST's `JwtAuthenticationFilter` uses, and `PurchaseOrderGrpcServiceImpl` calls the
+same `PurchaseOrderService.findVisibleById`/`findVisibleTo` (and therefore the same
+`ReadScopePolicy`, ADR-0005) the REST controller calls — no gRPC-only scoping logic exists to
+drift out of sync with REST's.
+
+### Branch / PR
+- Branch: `claude/grpc-api-shared-auth-v1spgw`
+- PR: [#5](https://github.com/arb-rajab/enterprise-app/pull/5)
+- Merge status: open, not yet merged as of this entry
+
+### CI status per check
+_Filled in below once the PR's CI has actually run — not claimed in advance._
+
+### Test counts (as run directly, not just claimed)
+- Backend unit tests: **42/42 passing** (`mvn test`, run directly in this session's sandbox after
+  the rebase, unchanged count from Session 4's `main` state — this session added no new
+  `*Test.java`, only the new integration test below), including
+  `ProcureFlowApplicationContextTest`, which proves the new gRPC beans (`GrpcServerLifecycle`,
+  `GrpcAuthInterceptor`, `PurchaseOrderGrpcServiceImpl`) wire into the real Spring context cleanly
+  without a Testcontainers Postgres.
+- Backend integration tests: **written (1 new class, `PurchaseOrderGrpcAuthorizationIT`, 1 test
+  method covering 8 distinct assertions) but not executed in this session's sandbox** — same
+  Docker-registry restriction as every prior session. Uses a real `ManagedChannel` and the actual
+  generated gRPC stub against `GrpcServerLifecycle`'s real bound port (not MockMvc, not a
+  hand-rolled protocol stand-in) to prove: an unauthenticated call is rejected
+  (`UNAUTHENTICATED`); the requester, their department manager, and Procurement (org-wide) can all
+  read the purchase order via both RPCs; and a Department Manager from a *different* department is
+  rejected (`PERMISSION_DENIED`) on `GetPurchaseOrder` and never appears in that manager's
+  `ListPurchaseOrders` stream — the read-path sibling of ADR-0007's write-path (approval) bypass
+  fix, now proven blocked on gRPC too. Run in CI on GitHub-hosted runners; see CI status above for
+  the actual result.
+- Backend format check (Spotless): **passing** (`mvn spotless:apply` then `mvn -q spotless:check`
+  and `mvn test`, run directly).
+- `mvn -B package -DskipTests` (proto codegen via `protobuf-maven-plugin` + compile + packaging,
+  matching `backend/Dockerfile`'s build stage exactly): **succeeds**, run directly.
+
+### Real blockers hit this session
+1. **Docker registry access is still blocked in this sandbox** (same restriction as every prior
+   session) — the new gRPC integration test and `mvn verify`'s Spotless `check`/Failsafe phases
+   could not be executed directly here. Verified in CI instead.
+2. **grpc-bom's transitive `protobuf-java` (3.25.5) didn't match the protoc version used to
+   generate code (4.28.2)**, causing a real local compile failure (`RuntimeVersion` class missing,
+   `Descriptors.FileDescriptor` API mismatches) the first time `mvn compile` was run after adding
+   the dependencies. Fixed by pinning `protobuf-java` to the same version as the `protoc` artifact
+   directly in `pom.xml` (Maven's "nearest wins" then overrides the BOM's transitive version) —
+   caught and fixed locally before ever pushing, not discovered via CI.
+3. **`io.grpc.stub.MetadataUtils.attachHeaders(stub, headers)`**, the convenience method assumed
+   from older grpc-java documentation/examples, **does not exist in grpc-java 1.68.1** — only
+   `newAttachHeadersInterceptor(Metadata)` (returning a `ClientInterceptor` for
+   `stub.withInterceptors(...)`) remains. Also caught locally via `mvn test-compile`, not CI.
+4. The pre-existing "starting branch already diverged from `origin/main`" incident (see "Starting
+   state verified" above) — this is the third time this exact failure mode has hit a session
+   (Sessions 3 and 4 also hit it, per their own entries above); this session's fix was simply to
+   check for and rebase past it *before* writing any new code, which Session 4's entry already
+   recommended as the fix for future sessions.
+
+### What's left in the backlog for a future session
+1. Confirm PR #5's CI (in particular the new `PurchaseOrderGrpcAuthorizationIT`, which spins up a
+   real gRPC server/client pair alongside the existing Postgres Testcontainers container) actually
+   goes green on a real Docker-enabled runner — this session could only get it to a
+   "should work, unverified locally" state, same caveat every prior session's integration tests
+   carried.
+2. Everything already listed in Session 4's list above, unchanged by this session's work.
+
 ## Session 3 — Cross-department approval bypass fix, Dependabot correction, divergent-history root cause
 
 _Numbered "Session 3" because PR #2 (`15e37b2`/`06c9e2c`/`81b4f29` — PO-number race condition,

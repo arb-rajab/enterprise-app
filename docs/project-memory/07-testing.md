@@ -63,6 +63,14 @@ shared `@Testcontainers` Postgres container and wires its JDBC URL into the Spri
   independently-approved requisitions to purchase orders from concurrent threads released
   simultaneously via a `CyclicBarrier`, and asserts every `poNumber` is unique and every request
   succeeded.
+- `PurchaseOrderGrpcAuthorizationIT` — proof that the gRPC purchase-order API (ADR-0009) enforces
+  the exact same authentication and department-scoped read authorization as REST, against a real
+  generated gRPC client/server pair (no MockMvc, no hand-rolled protocol stand-in): an
+  unauthenticated call is rejected (`UNAUTHENTICATED`); the requester, their department manager,
+  and an org-wide role can all read a purchase order via `GetPurchaseOrder`/`ListPurchaseOrders`;
+  and a Department Manager from a *different* department than the requisition's is rejected
+  (`PERMISSION_DENIED`) on both RPCs — the read-path sibling of the write-path (approval) bypass
+  ADR-0007 fixed, now proven blocked on the gRPC path too.
 - `OidcRedirectIT`, `OidcLoginProvisioningIT` — `AbstractOidcIntegrationTest` adds a second,
   singleton-pattern Testcontainer: a real Keycloak (`testcontainers-keycloak`), seeded from the
   exact realm import `docker-compose.yml`'s `keycloak` service also uses

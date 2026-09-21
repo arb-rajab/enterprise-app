@@ -21,6 +21,9 @@ COPY --from=build /build/target/procureflow-*.jar app.jar
 
 USER procureflow
 EXPOSE 8080
+# gRPC purchase-order API (additive, alongside REST) - see
+# docs/project-memory/adr/0009-grpc-purchase-order-api.md.
+EXPOSE 9090
 
 ENV JAVA_OPTS=""
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]

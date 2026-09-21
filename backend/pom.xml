@@ -24,6 +24,9 @@
         <testcontainers.version>1.20.2</testcontainers.version>
         <spotless.version>2.43.0</spotless.version>
         <testcontainers-keycloak.version>3.5.1</testcontainers-keycloak.version>
+        <grpc.version>1.68.1</grpc.version>
+        <protobuf.version>4.28.2</protobuf.version>
+        <protobuf-plugin.version>0.6.1</protobuf-plugin.version>
     </properties>
 
     <dependencies>
@@ -131,6 +134,43 @@
             <version>${testcontainers-keycloak.version}</version>
             <scope>test</scope>
         </dependency>
+
+        <!-- gRPC purchase-order API - see docs/project-memory/adr/0009-grpc-purchase-order-api.md.
+             Real generated server/stub code (protobuf-maven-plugin, configured below), not a
+             hand-rolled protocol. -->
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-netty-shaded</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-protobuf</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-stub</artifactId>
+        </dependency>
+        <dependency>
+            <!-- grpc-bom's transitive protobuf-java (3.25.x) predates the protoc version this
+                 module generates code with (${protobuf.version}); pin the runtime to match so the
+                 generated message classes' features (e.g. Descriptors.FileDescriptor's newer API)
+                 are actually present on the classpath. -->
+            <groupId>com.google.protobuf</groupId>
+            <artifactId>protobuf-java</artifactId>
+            <version>${protobuf.version}</version>
+        </dependency>
+        <dependency>
+            <!-- javax.annotation.Generated, referenced by grpc-generated code on Java 9+. -->
+            <groupId>org.apache.tomcat</groupId>
+            <artifactId>annotations-api</artifactId>
+            <version>6.0.53</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-testing</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <dependencyManagement>
@@ -142,10 +182,26 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
+            <dependency>
+                <groupId>io.grpc</groupId>
+                <artifactId>grpc-bom</artifactId>
+                <version>${grpc.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
     <build>
+        <extensions>
+            <extension>
+                <!-- Resolves ${os.detected.classifier} so the protoc/protoc-gen-grpc-java
+                     platform-specific binaries below can be pulled from Maven Central. -->
+                <groupId>kr.motd.maven</groupId>
+                <artifactId>os-maven-plugin</artifactId>
+                <version>1.7.1</version>
+            </extension>
+        </extensions>
         <plugins>
             <plugin>
                 <groupId>org.springframework.boot</groupId>
@@ -196,6 +252,31 @@
                         <goals>
                             <goal>integration-test</goal>
                             <goal>verify</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <!-- Generates real gRPC server/stub Java code from src/main/proto/*.proto into
+                     target/generated-sources - see
+                     docs/project-memory/adr/0009-grpc-purchase-order-api.md. -->
+                <groupId>org.xolstice.maven.plugins</groupId>
+                <artifactId>protobuf-maven-plugin</artifactId>
+                <version>${protobuf-plugin.version}</version>
+                <configuration>
+                    <protocArtifact>
+                        com.google.protobuf:protoc:${protobuf.version}:exe:${os.detected.classifier}
+                    </protocArtifact>
+                    <pluginId>grpc-java</pluginId>
+                    <pluginArtifact>
+                        io.grpc:protoc-gen-grpc-java:${grpc.version}:exe:${os.detected.classifier}
+                    </pluginArtifact>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>compile</goal>
+                            <goal>compile-custom</goal>
                         </goals>
                     </execution>
                 </executions>

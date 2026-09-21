@@ -61,6 +61,7 @@ services:
       OIDC_FRONTEND_REDIRECT_URI: http://localhost:8081/sso/callback
     ports:
       - '8080:8080'
+      - '9090:9090'
     depends_on:
       postgres:
         condition: service_healthy

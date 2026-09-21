@@ -34,7 +34,8 @@ import org.springframework.test.context.TestPropertySource;
       "spring.datasource.username=sa",
       "spring.datasource.password=",
       "spring.jpa.hibernate.ddl-auto=create-drop",
-      "spring.flyway.enabled=false"
+      "spring.flyway.enabled=false",
+      "app.grpc.port=0"
     })
 class ProcureFlowApplicationContextTest {
 

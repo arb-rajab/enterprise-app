@@ -1,0 +1,55 @@
+syntax = "proto3";
+
+package procureflow.purchaseorder.v1;
+
+option java_package = "com.enterpriseapp.procureflow.grpc.purchaseorder.v1";
+option java_multiple_files = true;
+option java_outer_classname = "PurchaseOrderServiceProto";
+
+import "google/protobuf/timestamp.proto";
+
+// Read-only purchase-order status API for service-to-service / typed-RPC consumers.
+//
+// Enforces the exact same authorization rules as `GET /api/v1/purchase-orders` and
+// `GET /api/v1/purchase-orders/{id}` (see PurchaseOrderService.findVisibleTo/findVisibleById and
+// docs/project-memory/adr/0009-grpc-purchase-order-api.md): an unauthenticated caller is rejected,
+// and an authenticated caller only ever sees purchase orders their role/department/ownership
+// entitles them to under ADR-0005's row-level read scoping.
+service PurchaseOrderGrpcService {
+  // Fetches a single purchase order's status by id. PERMISSION_DENIED if the caller is not
+  // entitled to view it (mirrors the REST endpoint's 403), NOT_FOUND if it doesn't exist.
+  rpc GetPurchaseOrder(GetPurchaseOrderRequest) returns (PurchaseOrderStatusResponse);
+
+  // Streams every purchase order visible to the caller, scoped identically to
+  // `GET /api/v1/purchase-orders`.
+  rpc ListPurchaseOrders(ListPurchaseOrdersRequest) returns (stream PurchaseOrderStatusResponse);
+}
+
+message GetPurchaseOrderRequest {
+  int64 id = 1;
+}
+
+message ListPurchaseOrdersRequest {}
+
+enum PurchaseOrderStatusValue {
+  PURCHASE_ORDER_STATUS_UNSPECIFIED = 0;
+  ISSUED = 1;
+  ACKNOWLEDGED = 2;
+  FULFILLED = 3;
+  CANCELLED = 4;
+}
+
+message PurchaseOrderStatusResponse {
+  int64 id = 1;
+  string po_number = 2;
+  PurchaseOrderStatusValue status = 3;
+  int64 requisition_id = 4;
+  int64 department_id = 5;
+  string department_code = 6;
+  int64 vendor_id = 7;
+  string vendor_name = 8;
+  // Decimal amount rendered as a string (matches the REST DTO's BigDecimal serialization)
+  // rather than a float, to avoid floating-point precision loss on money.
+  string total_amount = 9;
+  google.protobuf.Timestamp issued_at = 10;
+}

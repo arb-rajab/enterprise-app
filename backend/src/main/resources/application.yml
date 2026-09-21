@@ -79,5 +79,10 @@ app:
       issuer: procureflow
   oidc:
     frontend-redirect-uri: ${OIDC_FRONTEND_REDIRECT_URI:http://localhost:4200/sso/callback}
+  grpc:
+    # Separate listener alongside REST's server.port - see
+    # docs/project-memory/adr/0009-grpc-purchase-order-api.md. 0 lets the OS pick a free port
+    # (integration tests do this and read the actual bound port back).
+    port: ${GRPC_PORT:9090}
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:4200}

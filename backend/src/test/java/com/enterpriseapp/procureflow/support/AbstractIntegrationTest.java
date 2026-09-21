@@ -45,4 +45,14 @@ public abstract class AbstractIntegrationTest {
     registry.add("spring.datasource.username", POSTGRES::getUsername);
     registry.add("spring.datasource.password", POSTGRES::getPassword);
   }
+
+  /**
+   * Let the OS pick a free port for the gRPC listener (see {@code GrpcServerLifecycle}) instead of
+   * the fixed default, so every IT class's Spring context - not just gRPC-specific tests - can boot
+   * concurrently without fighting over port 9090.
+   */
+  @DynamicPropertySource
+  static void grpcProperties(DynamicPropertyRegistry registry) {
+    registry.add("app.grpc.port", () -> 0);
+  }
 }

@@ -99,5 +99,11 @@ app:
     grpc-per-ip:
       capacity: ${RATE_LIMIT_GRPC_PER_IP_CAPACITY:120}
       period-minutes: ${RATE_LIMIT_GRPC_PER_IP_PERIOD_MINUTES:1}
+    # CIDR blocks of reverse proxies allowed to supply X-Forwarded-For/X-Real-IP - see
+    # RateLimitProperties#trustedProxies. Empty by default (no proxy trusted, plain
+    # getRemoteAddr() is used) so local/dev runs with no proxy in front of the app are unaffected;
+    # docker-compose.yml sets this to the frontend (nginx) container's fixed address for the
+    # documented Docker Compose deployment.
+    trusted-proxies: ${RATE_LIMIT_TRUSTED_PROXIES:}
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:4200}

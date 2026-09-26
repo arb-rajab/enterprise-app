@@ -1,5 +1,7 @@
 package com.enterpriseapp.procureflow.ratelimit;
 
+import java.util.ArrayList;
+import java.util.List;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -37,6 +39,18 @@ public class RateLimitProperties {
 
   /** Resource-exhaustion protection on the gRPC listener, keyed per caller remote address. */
   private Rule grpcPerIp = new Rule(120, 1);
+
+  /**
+   * CIDR blocks (e.g. {@code 172.28.0.10/32}) of reverse proxies allowed to supply the caller's
+   * real address via {@code X-Forwarded-For}/{@code X-Real-IP} - see
+   * docs/project-memory/adr/0010-rate-limiting.md's "Trusted proxies" note. Empty by default: with
+   * nothing configured, {@link RateLimitFilter} keys on {@code HttpServletRequest.getRemoteAddr()}
+   * alone (correct for local/dev with no proxy in front of the app) and never trusts these headers,
+   * since blindly trusting them from an unknown source lets any direct caller spoof its rate-limit
+   * key. In this app's documented Docker Compose deployment (`docker-compose.yml`'s `frontend`
+   * service, which proxies `/api` per ADR-0003), this is set to that container's fixed address.
+   */
+  private List<String> trustedProxies = new ArrayList<>();
 
   /** A token-bucket rule: up to {@code capacity} requests per {@code periodMinutes}. */
   @Getter

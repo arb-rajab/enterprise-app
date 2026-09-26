@@ -6,6 +6,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.enterpriseapp.procureflow.support.AbstractIntegrationTest;
+import com.enterpriseapp.procureflow.user.UserService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
@@ -19,6 +20,8 @@ class AuthControllerIT extends AbstractIntegrationTest {
   @Autowired private MockMvc mockMvc;
 
   @Autowired private ObjectMapper objectMapper;
+
+  @Autowired private UserService userService;
 
   @Test
   void registerThenLoginReturnsAJwtForANewUser() throws Exception {
@@ -128,6 +131,64 @@ class AuthControllerIT extends AbstractIntegrationTest {
     String refreshBody =
         objectMapper.writeValueAsString(new RefreshPayload("not-a-real-refresh-token"));
 
+    mockMvc
+        .perform(
+            post("/api/v1/auth/refresh")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(refreshBody))
+        .andExpect(status().isUnauthorized());
+  }
+
+  @Test
+  void loginOfADeactivatedUserIsRejected() throws Exception {
+    // Baseline this fix must not disturb: password login already blocks a deactivated account via
+    // AuthenticationManager -> UserPrincipal.isEnabled(). The OIDC/refresh-token fix (see
+    // OidcAuthenticationSuccessHandlerTest, RefreshTokenServiceTest) closes the gaps where that
+    // check was previously missing, without changing this already-correct behavior.
+    String email = "deactivated-login+" + System.nanoTime() + "@procureflow.test";
+    String registerBody =
+        objectMapper.writeValueAsString(
+            new RegisterPayload(email, "Password123!", "Deac", "Tivated"));
+    MvcResult registerResult =
+        mockMvc
+            .perform(
+                post("/api/v1/auth/register")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(registerBody))
+            .andExpect(status().isCreated())
+            .andReturn();
+    long userId = readTree(registerResult).get("user").get("id").asLong();
+
+    userService.setActive(userId, false);
+
+    String loginBody = objectMapper.writeValueAsString(new LoginPayload(email, "Password123!"));
+    mockMvc
+        .perform(
+            post("/api/v1/auth/login").contentType(MediaType.APPLICATION_JSON).content(loginBody))
+        .andExpect(status().isUnauthorized());
+  }
+
+  @Test
+  void refreshFailsOnceTheUsersAccountIsDeactivated() throws Exception {
+    String email = "deactivated-refresh+" + System.nanoTime() + "@procureflow.test";
+    String registerBody =
+        objectMapper.writeValueAsString(
+            new RegisterPayload(email, "Password123!", "Deac", "Tivated"));
+    MvcResult registerResult =
+        mockMvc
+            .perform(
+                post("/api/v1/auth/register")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(registerBody))
+            .andExpect(status().isCreated())
+            .andReturn();
+    JsonNode registerJson = readTree(registerResult);
+    long userId = registerJson.get("user").get("id").asLong();
+    String refreshToken = registerJson.get("refreshToken").asText();
+
+    userService.setActive(userId, false);
+
+    String refreshBody = objectMapper.writeValueAsString(new RefreshPayload(refreshToken));
     mockMvc
         .perform(
             post("/api/v1/auth/refresh")

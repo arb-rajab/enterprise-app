@@ -98,3 +98,24 @@ after that point.
   instead of a single `issuer-uri` - see the comment in `application.yml`. Local dev without
   Compose (`mvn spring-boot:run` + `ng serve`, pointed at a standalone `docker-compose up
   keycloak`) doesn't hit this, since both sides reach Keycloak at the same `localhost:8180`.
+- **Amendment (deactivation-check bypass fix):** `OidcAuthenticationSuccessHandler` never routed
+  through `AuthenticationManager` (there's no password to check for an SSO login), so it never ran
+  the `UserPrincipal.isEnabled()`/`user.isActive()` check password login gets there for free. A
+  deactivated user (`UserService.setActive(id, false)`) could still complete a full OIDC login and
+  walk away with a valid access/refresh token pair - a real, live authentication-boundary gap, not
+  theoretical, and specifically the kind of drift this ADR's own "everything downstream of login...
+  is identical regardless of which path was used" claim was supposed to prevent. Fixed by running
+  the linked `User` through `org.springframework.security.authentication
+  .AccountStatusUserDetailsChecker` - the same reusable Spring Security component
+  `DaoAuthenticationProvider` relies on internally for this exact check - wrapped in a
+  `UserPrincipal`, before minting any tokens; a deactivated user is redirected back to the SPA with
+  `#error=account_deactivated` instead. This is the closest equivalent to "the exact same code
+  path" password login uses that's architecturally possible here: OIDC has no password to hand
+  `AuthenticationManager.authenticate()`, so it cannot literally go through that same call, but it
+  now runs the identical account-status check via the same Spring Security class, not a second
+  hand-rolled `isActive()` boolean test that could drift out of sync with it again. See
+  `OidcAuthenticationSuccessHandlerTest.deactivatedUserIsBlockedInsteadOfIssuedTokens` (fails
+  against the pre-fix handler, confirmed directly by re-running it with the check removed: the
+  redirect carried a live token pair and both `JwtService`/`RefreshTokenService` were invoked) and
+  the paired `RefreshTokenService.rotate()` fix in ADR-0006's amendment above, which closes the
+  same class of gap for an OIDC-issued refresh token's *renewal*, not just its initial issuance.

@@ -90,6 +90,20 @@ class RefreshTokenServiceTest {
   }
 
   @Test
+  void rotateRejectsATokenWhoseUserHasSinceBeenDeactivated() {
+    user.setActive(false);
+    RefreshToken stored = activeStoredToken("raw-token-deactivated");
+    when(refreshTokenRepository.findByTokenHash(sha256Hex("raw-token-deactivated")))
+        .thenReturn(Optional.of(stored));
+
+    assertThatThrownBy(() -> service.rotate("raw-token-deactivated"))
+        .isInstanceOf(InvalidRefreshTokenException.class);
+
+    // The presented token must still be consumed (single-use), not left usable for a later retry.
+    assertThat(stored.getRevokedAt()).isNotNull();
+  }
+
+  @Test
   void rotateRejectsAnExpiredToken() {
     RefreshToken stored = activeStoredToken("raw-token-3");
     stored.setExpiresAt(Instant.now().minus(1, ChronoUnit.MINUTES));

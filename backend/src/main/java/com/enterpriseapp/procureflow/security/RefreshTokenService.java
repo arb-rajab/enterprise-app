@@ -22,6 +22,11 @@ import org.springframework.transaction.annotation.Transactional;
  * high-entropy random data, not a low-entropy secret, so a fast hash is appropriate here - this is
  * not password storage). Rotation always issues a new token and revokes the presented one, so a
  * refresh token is single-use; presenting an already-rotated or revoked token is rejected.
+ *
+ * <p>Rotation also re-checks the token owner's account status on every call, not just at initial
+ * login - an already-issued refresh token (from either login path: password or OIDC/SSO, ADR-0008)
+ * must stop renewing the moment its user is deactivated, the same guarantee password login gets for
+ * free from {@code AuthenticationManager} on every fresh login attempt.
  */
 @Service
 @RequiredArgsConstructor
@@ -53,6 +58,9 @@ public class RefreshTokenService {
       throw new InvalidRefreshTokenException("Refresh token has expired or been revoked");
     }
     existing.setRevokedAt(Instant.now());
+    if (!existing.getUser().isActive()) {
+      throw new InvalidRefreshTokenException("Refresh token is invalid");
+    }
     return new RotationResult(existing.getUser(), issue(existing.getUser()));
   }
 

@@ -24,6 +24,7 @@ public class GrpcServerLifecycle implements SmartLifecycle {
 
   private final PurchaseOrderGrpcServiceImpl purchaseOrderGrpcService;
   private final GrpcAuthInterceptor grpcAuthInterceptor;
+  private final GrpcRateLimitInterceptor grpcRateLimitInterceptor;
 
   @Value("${app.grpc.port:9090}")
   private int configuredPort;
@@ -37,7 +38,8 @@ public class GrpcServerLifecycle implements SmartLifecycle {
       server =
           ServerBuilder.forPort(configuredPort)
               .addService(
-                  ServerInterceptors.intercept(purchaseOrderGrpcService, grpcAuthInterceptor))
+                  ServerInterceptors.intercept(
+                      purchaseOrderGrpcService, grpcAuthInterceptor, grpcRateLimitInterceptor))
               .build()
               .start();
       running = true;

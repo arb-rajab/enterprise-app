@@ -1,5 +1,7 @@
 package com.enterpriseapp.procureflow.config;
 
+import com.enterpriseapp.procureflow.ratelimit.RateLimitFilter;
+import com.enterpriseapp.procureflow.ratelimit.RateLimitProperties;
 import com.enterpriseapp.procureflow.security.JwtAuthenticationFilter;
 import com.enterpriseapp.procureflow.security.JwtProperties;
 import com.enterpriseapp.procureflow.security.JwtService;
@@ -50,7 +52,11 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
  */
 @Configuration
 @EnableMethodSecurity
-@EnableConfigurationProperties({JwtProperties.class, OidcProperties.class})
+@EnableConfigurationProperties({
+  JwtProperties.class,
+  OidcProperties.class,
+  RateLimitProperties.class
+})
 @RequiredArgsConstructor
 public class SecurityConfig {
 
@@ -58,6 +64,7 @@ public class SecurityConfig {
   private final CorsProperties corsProperties;
   private final OidcAuthenticationSuccessHandler oidcAuthenticationSuccessHandler;
   private final OidcAuthenticationFailureHandler oidcAuthenticationFailureHandler;
+  private final RateLimitFilter rateLimitFilter;
 
   @Bean
   public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration)
@@ -106,7 +113,8 @@ public class SecurityConfig {
                     .anyRequest()
                     .authenticated())
         .addFilterBefore(
-            new JwtAuthenticationFilter(jwtService), UsernamePasswordAuthenticationFilter.class);
+            new JwtAuthenticationFilter(jwtService), UsernamePasswordAuthenticationFilter.class)
+        .addFilterBefore(rateLimitFilter, JwtAuthenticationFilter.class);
     return http.build();
   }
 

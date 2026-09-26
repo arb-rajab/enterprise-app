@@ -1,5 +1,111 @@
 # Session Handoff
 
+## Session 6 — OIDC deactivation-check bypass fix, rate limiting (REST + gRPC), Spring Boot/Security CVE investigation
+
+**Starting state verified:** `git fetch origin main` was run before any change. The pre-existing
+branch `claude/oidc-deactivation-bypass-fix-b7mx40` was found to be 17 commits behind `origin/main`
+(missing, among others, PR #4's OIDC/SSO work and PR #5's gRPC API - it had never been rebased past
+the initial scaffold) - the same failure mode `13-divergent-history-incident.md` describes. Fixed
+by resetting the branch to `origin/main` before any new work (`git checkout -B
+claude/oidc-deactivation-bypass-fix-b7mx40 origin/main`), since no PR had been opened for it yet -
+there was nothing of this branch's own to preserve.
+
+**What was built, in priority order:**
+1. **Fixed a real, live OIDC deactivation-check bypass.** `OidcAuthenticationSuccessHandler` never
+   routed through `AuthenticationManager` (no password to check for SSO), so it never ran the
+   `user.isActive()` check password login gets for free - a deactivated user could still complete
+   OIDC login and get a valid token pair. Compounded: `RefreshTokenService.rotate()` also never
+   checked the token owner's active status, so an already-issued refresh token (from either login
+   path) kept renewing after deactivation. Reproduced first (both bugs verified to actually cause
+   the failing tests below to fail against the pre-fix code, by temporarily reverting the fix and
+   re-running them - not assumed from reading the code alone), then fixed: the OIDC handler now
+   runs the linked user through Spring Security's own `AccountStatusUserDetailsChecker` (the same
+   component `DaoAuthenticationProvider` uses internally, not a second hand-rolled check) before
+   minting tokens; `rotate()` now also rejects once the token's user is deactivated. See
+   `adr/0008-oidc-sso-identity-linking.md` and `adr/0006-jwt-refresh-token-rotation-and-revocation.md`'s
+   amendments for the full account.
+2. **Added rate limiting to the gRPC service and the REST API - both had none before this.** A
+   general per-IP limit across the whole REST API, two extra tighter limits on `POST
+   /api/v1/auth/login` (per-credential-and-IP, per-IP-alone), and a per-caller-remote-address limit
+   on the gRPC listener, running ahead of `GrpcAuthInterceptor` the same way the REST login checks
+   run ahead of body parsing. In-memory `bucket4j` buckets - no Redis/shared cache exists anywhere
+   else in this stack. See `adr/0010-rate-limiting.md` for the full mechanism and threshold
+   reasoning, including the honest caveat that these thresholds were sized by inspecting the
+   Docker-gated IT suite's source rather than by executing it (this sandbox still can't run
+   Testcontainers - see "Real blockers" below).
+3. **Investigated the Spring Boot/Spring Security version and two flagged CVEs, rather than
+   upgrading blindly or dismissing without checking.** CVE-2024-38827 (spring-security, in range at
+   the pinned 6.3.3) and CVE-2025-22235 (actuator `EndpointRequest.to()`, confirmed **not
+   applicable** - this codebase never calls that API) were both assessed against this app's actual
+   code (dependency tree resolved and read, `SecurityConfig` inspected directly), then fixed anyway
+   via a same-branch patch bump: `spring-boot-starter-parent` 3.3.4 -> 3.3.13 (confirmed directly
+   against Maven Central to be the newest version published for the 3.3.x line - the whole branch
+   is now fully open-source end-of-life). `mvn spotless:apply` and the full unit test suite pass
+   unchanged after the bump. A full Spring Boot 4.x migration was investigated and explicitly
+   **not** attempted - real, unassessed breaking-change surface that this session's priority order
+   (ranked below the fix and rate limiting) didn't leave room to also validate safely. See
+   `06-security.md`'s new "Spring Boot / Spring Security version and CVE applicability" section and
+   `09-backlog.md`.
+4. **gRPC TLS: deferred explicitly, not attempted.** Lower priority than the three items above per
+   this session's own instructions, and correctly fixing it needs a real decision (mTLS vs.
+   ingress/mesh-terminated TLS, and how local/dev still works) this session's remaining scope didn't
+   have room for. Documented as a named, disclosed gap (not a silent one) in `06-security.md`'s
+   Transport & headers section and `09-backlog.md`.
+
+### Branch / PR
+- Branch: `claude/oidc-deactivation-bypass-fix-b7mx40`
+- PR: [#6](https://github.com/arb-rajab/enterprise-app/pull/6)
+- Merge status: open, not yet merged as of this entry
+
+### CI status per check
+_Filled in below once the PR's CI has actually run — not claimed in advance._
+
+### Test counts (as run directly, not just claimed)
+- Backend unit tests: **52/52 passing** (`mvn test`, run directly in this session's sandbox), up
+  from 42 at Session 5's `main` state. New: `OidcAuthenticationSuccessHandlerTest` (2 - the
+  regression proof for the OIDC bypass, both verified to fail against the pre-fix handler by
+  temporarily reverting it and re-running), `RefreshTokenServiceTest
+  .rotateRejectsATokenWhoseUserHasSinceBeenDeactivated` (1, same fail-before/pass-after
+  verification), `RateLimitFilterTest` (7), `GrpcRateLimitInterceptorTest` (1 - fully in-process,
+  no Docker, proves the gRPC interceptor ordering directly).
+- Backend integration tests: **written (2 new methods in the existing `AuthControllerIT`:
+  `loginOfADeactivatedUserIsRejected` as the password-login baseline this fix must not disturb, and
+  `refreshFailsOnceTheUsersAccountIsDeactivated`) but not executed in this session's sandbox** -
+  same Docker-registry restriction as every prior session. Run in CI; see CI status above.
+- Backend format check (Spotless): **passing** (`mvn spotless:apply` then `mvn test`, run directly,
+  both before and after the Spring Boot version bump).
+- `mvn dependency:tree`, resolved and read directly (not assumed) to confirm the CVE-relevant
+  before/after versions recorded in `06-security.md`.
+
+### Real blockers hit this session
+1. **Docker registry access is still blocked in this sandbox** (same restriction as every prior
+   session) - the new `AuthControllerIT` methods and the full `mvn verify` (Spotless `check`,
+   Failsafe integration tests) could not be executed directly here. Verified in CI instead. This is
+   also why `adr/0010-rate-limiting.md`'s thresholds were sized by inspecting the IT suite's source
+   rather than by executing it and observing real call volume - a real, disclosed gap in how those
+   numbers were validated, not a hidden one; if CI produces spurious 429s from legitimate IT
+   traffic, the fix is raising those thresholds, not disabling a limiter.
+2. `flexcatalog`/`bookslot` (this task's named reference for "this portfolio's established rate-
+   limiting pattern") are separate repositories, not part of this session's default scope - added
+   read access for this session specifically to study `bookslot`'s own rate-limiting decision
+   (`D-0063` in that repo's decision log) before designing this repo's `adr/0010-rate-limiting.md`.
+   That repo is Laravel (Laravel's own cache-backed `RateLimiter`/`throttle:` middleware, not
+   `bucket4j`), so the *mechanism* isn't directly portable - what carried over is the *shape*: a
+   two-tier (per-credential+IP, per-IP-alone) login limiter, a separate limiter for the other
+   real abuse surface, a response shape matching this codebase's own existing error convention
+   rather than the framework default, and stating threshold-validation honestly rather than
+   presenting an unverified number as proven.
+
+### What's left in the backlog for a future session
+1. Confirm this PR's CI (in particular the new `AuthControllerIT` methods and whether the new rate
+   limiters' default thresholds survive the full IT suite without a spurious 429 - see "Real
+   blockers" above) actually goes green on a real Docker-enabled runner.
+2. `adr/0010-rate-limiting.md`'s own follow-up: if this app is ever horizontally scaled, its
+   in-memory rate limiters need to move to a shared/distributed backing store.
+3. gRPC TLS (see `06-security.md`/`09-backlog.md`) and the Spring Boot 4.x migration (see
+   `06-security.md`/`09-backlog.md`) - both explicitly deferred by this session, not overlooked.
+4. Everything already listed in Session 5's list below, unchanged by this session's work.
+
 ## Session 5 — gRPC purchase-order status API, sharing REST's JWT auth and read-scoping
 
 **Starting state verified:** `git fetch origin main` was run before any change. The pre-existing

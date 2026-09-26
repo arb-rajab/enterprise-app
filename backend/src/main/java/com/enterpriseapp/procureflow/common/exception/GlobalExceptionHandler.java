@@ -6,6 +6,7 @@ import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.AccountStatusException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -36,6 +37,18 @@ public class GlobalExceptionHandler {
   @ExceptionHandler(BadCredentialsException.class)
   public ResponseEntity<ApiError> handleBadCredentials(
       BadCredentialsException ex, HttpServletRequest request) {
+    return build(HttpStatus.UNAUTHORIZED, "Invalid email or password", request, List.of());
+  }
+
+  /**
+   * Thrown by {@code AuthenticationManager} for a deactivated (or locked/expired) account. Mapped
+   * to the same response as bad credentials, deliberately not a distinct message - telling an
+   * unauthenticated caller "this account is disabled" would leak account existence/status to
+   * someone who doesn't yet have valid credentials for it.
+   */
+  @ExceptionHandler(AccountStatusException.class)
+  public ResponseEntity<ApiError> handleAccountStatus(
+      AccountStatusException ex, HttpServletRequest request) {
     return build(HttpStatus.UNAUTHORIZED, "Invalid email or password", request, List.of());
   }
 

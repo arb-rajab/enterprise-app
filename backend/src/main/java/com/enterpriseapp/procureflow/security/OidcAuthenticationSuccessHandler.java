@@ -11,6 +11,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.authentication.AccountStatusException;
+import org.springframework.security.authentication.AccountStatusUserDetailsChecker;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
@@ -24,10 +26,19 @@ import org.springframework.stereotype.Component;
  * - then sending the browser back to the SPA with them. From the frontend's point of view, OIDC
  * login and password login end the same way: an {@code AuthResponse}-shaped token pair it can store
  * and start sending as {@code Authorization: Bearer <token>}.
+ *
+ * <p>Unlike password login, this never goes through {@code AuthenticationManager} (there's no
+ * password to check), so it can't inherit that path's account-status enforcement for free. Instead
+ * it runs the linked user through the same {@link AccountStatusUserDetailsChecker} Spring
+ * Security's own {@code DaoAuthenticationProvider} uses internally - the exact check password login
+ * relies on, not a second hand-rolled {@code isActive()} test that could drift out of sync with it.
  */
 @Component
 @RequiredArgsConstructor
 public class OidcAuthenticationSuccessHandler implements AuthenticationSuccessHandler {
+
+  private static final AccountStatusUserDetailsChecker ACCOUNT_STATUS_CHECKER =
+      new AccountStatusUserDetailsChecker();
 
   private final UserService userService;
   private final JwtService jwtService;
@@ -54,6 +65,13 @@ public class OidcAuthenticationSuccessHandler implements AuthenticationSuccessHa
     User user =
         userService.findOrProvisionForOidc(
             provider, oidcUser.getSubject(), email, firstNameOf(oidcUser), lastNameOf(oidcUser));
+
+    try {
+      ACCOUNT_STATUS_CHECKER.check(new UserPrincipal(user));
+    } catch (AccountStatusException ex) {
+      redirectWithError(response, "account_deactivated");
+      return;
+    }
 
     Set<String> roles = user.getRoles().stream().map(Enum::name).collect(Collectors.toSet());
     String accessToken = jwtService.generateAccessToken(user.getId(), user.getEmail(), roles);

@@ -70,6 +70,18 @@ before access-token expiry — see Consequences.
   remains valid until its own (short) expiry — this ADR narrows the revocation gap ADR-0002
   accepted, it does not close it to zero. That residual window is the short access-token TTL
   itself, which is unchanged by this ADR (see Alternative 4).
+- **Amendment (deactivation-check bypass fix):** `rotate()` originally checked only the *token's*
+  own state (not expired, not revoked) — it never checked whether the token's *user* had since been
+  deactivated. That meant an already-issued refresh token (from either login path: password, or
+  OIDC/SSO once ADR-0008 added it) kept renewing indefinitely after `UserService.setActive(id,
+  false)`, even though a brand-new password login for that same user was correctly rejected by
+  `AuthenticationManager`. `rotate()` now also rejects (and still consumes/revokes the presented
+  token, keeping it single-use either way) once `existing.getUser().isActive()` is false — the
+  narrower, already-accepted "an already-issued access token stays valid until its own short expiry"
+  gap above is unchanged; this closes the separate, unbounded gap in the *renewal* path
+  specifically. See `RefreshTokenServiceTest.rotateRejectsATokenWhoseUserHasSinceBeenDeactivated`
+  (this test fails against the pre-fix code, confirmed directly by re-running it with the check
+  removed) and `AuthControllerIT.refreshFailsOnceTheUsersAccountIsDeactivated`.
 - The Angular client stores and sends the refresh token and calls `/auth/logout` on sign-out, but
   does **not** yet use `/auth/refresh` to renew an access token silently before it expires — today
   a 401 from an expired access token still bounces the user to `/login` (`authInterceptor`), same

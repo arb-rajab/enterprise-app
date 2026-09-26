@@ -9,7 +9,20 @@ Deferred work, each with the reason it was deferred rather than a bare TODO.
   explicit logout. See ADR-0006.
 - **Scheduled cleanup of expired/revoked `refresh_tokens` rows** — no retention/sweep job exists;
   fine at demo data volumes.
-- **Rate limiting and account lockout** on `/api/v1/auth/**`.
+- **Account lockout** after repeated failed logins on `/api/v1/auth/**` - a distinct, persistent
+  mechanism from rate limiting. Rate limiting itself is done, see `adr/0010-rate-limiting.md`.
+- **gRPC TLS.** The gRPC listener (`app.grpc.port`, ADR-0009) is plaintext; REST at least has a
+  documented "platform-level ingress terminates TLS" answer (`06-security.md`), gRPC doesn't yet.
+  Needs a real decision (mTLS between services vs. ingress/mesh-terminated TLS in front of port
+  9090, and how local/dev still works without either) before implementing, not a rushed
+  self-signed-cert patch.
+- **Migrate off Spring Boot 3.3.x.** The whole 3.3 branch is now fully end-of-life for open-source
+  users (confirmed directly against Maven Central - 3.3.13 is the newest version published there);
+  a patch bump within 3.3.x closed the two CVEs flagged in the pass that found this
+  (`06-security.md`), but doesn't put this app back on a branch that keeps receiving open-source
+  security patches. Spring Boot 4.x is a major-version jump with real breaking-change surface
+  (Spring Framework 7 baseline, possible dependency-floor changes) that needs its own dedicated,
+  validated pass - not something to bundle into an unrelated change.
 - ~~OIDC/SSO federation~~ — done, see `adr/0008-oidc-sso-identity-linking.md`. What's still
   deferred from that work: an **unlink-SSO-identity flow** (there's no way to clear a user's
   `oidc_provider`/`oidc_subject` and force password-only login again), and revisiting the

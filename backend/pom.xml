@@ -7,7 +7,13 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.3.4</version>
+        <!-- 3.3.13 is the last version published to Maven Central for the 3.3.x line - the whole
+             3.3 branch is now fully end-of-life for open-source users (see
+             docs/project-memory/06-security.md, "Dependency & container hygiene", and
+             docs/project-memory/09-backlog.md for the follow-on migration this leaves open).
+             Bumped from 3.3.4 to close CVE-2024-38827 (spring-security, fixed upstream in 6.3.5;
+             this pulls in 6.3.10) - see 06-security.md for the applicability assessment. -->
+        <version>3.3.13</version>
         <relativePath/>
     </parent>
 
@@ -27,6 +33,7 @@
         <grpc.version>1.68.1</grpc.version>
         <protobuf.version>4.28.2</protobuf.version>
         <protobuf-plugin.version>0.6.1</protobuf-plugin.version>
+        <bucket4j.version>8.20.0</bucket4j.version>
     </properties>
 
     <dependencies>
@@ -97,6 +104,16 @@
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <optional>true</optional>
+        </dependency>
+
+        <dependency>
+            <!-- Rate limiting (login brute-force, general REST API, gRPC) - see
+                 docs/project-memory/adr/0010-rate-limiting.md. In-memory token-bucket buckets keyed
+                 per-caller, matching this single-instance app's existing "no new infrastructure"
+                 posture (no Redis/cache store exists here to back a distributed limiter). -->
+            <groupId>com.bucket4j</groupId>
+            <artifactId>bucket4j_jdk17-core</artifactId>
+            <version>${bucket4j.version}</version>
         </dependency>
 
         <dependency>

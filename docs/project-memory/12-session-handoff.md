@@ -54,8 +54,8 @@ there was nothing of this branch's own to preserve.
 
 ### Branch / PR
 - Branch: `claude/oidc-deactivation-bypass-fix-b7mx40`
-- PR: _filled in below once opened_
-- Merge status: _filled in below once resolved_
+- PR: [#6](https://github.com/arb-rajab/enterprise-app/pull/6)
+- Merge status: open, not yet merged as of this entry
 
 ### CI status per check
 _Filled in below once the PR's CI has actually run — not claimed in advance._

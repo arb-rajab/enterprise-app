@@ -126,3 +126,43 @@ raising `app.rate-limit.*` in this file's own decision rather than disabling a l
   exercise these endpoints below any of this ADR's thresholds, so they're a passive check that the
   defaults don't false-positive on real traffic, not a dedicated proof the limiters engage (that's
   what the new unit/in-process tests are for).
+
+## Amendment: trusted proxies for `RateLimitFilter` (REST only)
+The REST limiters above originally keyed straight off `HttpServletRequest.getRemoteAddr()`. That's
+wrong for this app's own documented deployment: ADR-0003 puts nginx (`frontend/nginx.conf`) in
+front of the backend as a same-origin reverse proxy for `/api/**`, `/oauth2/**`, and `/login/**`,
+so every real request's `getRemoteAddr()` is the proxy container's address, not the caller's -
+every real user collapses onto one IP-keyed bucket (useless `api-per-ip`/`login-per-ip` limiting),
+and one abusive caller sharing that address can exhaust the bucket for every legitimate user behind
+the same proxy.
+
+**Fix:** `ClientIpResolver` (new, in the `ratelimit` package) resolves the key `RateLimitFilter`
+uses: it reads `X-Forwarded-For` (first hop) or `X-Real-IP` - both of which
+`frontend/nginx.conf` already sets on every proxied request - **only** when `getRemoteAddr()`
+itself matches one of `app.rate-limit.trusted-proxies` (CIDR blocks, via Spring Security's
+`IpAddressMatcher`); otherwise it returns `getRemoteAddr()` unchanged, header present or not. This
+is deliberately not "trust the header if present": a header trusted unconditionally is
+trivially spoofable by any caller that reaches the backend directly, letting one attacker pick an
+arbitrary rate-limit key (evading their own limit, or exhausting a real user's bucket by claiming
+their IP).
+
+Default is an empty list, so local/dev with no proxy in front of the app (`ng serve` via
+`proxy.conf.json`, or hitting the backend jar directly) is unaffected: `getRemoteAddr()` is used
+exactly as before. `docker-compose.yml` now pins `frontend` to a fixed address
+(`172.28.0.10`, via a new `procureflow-net` network with a fixed `172.28.0.0/24` subnet - Compose's
+default bridge subnet isn't stable enough to hardcode) and sets
+`backend`'s `RATE_LIMIT_TRUSTED_PROXIES=172.28.0.10/32` to that one address - so a caller hitting
+`backend`'s directly-published `:8080` (bypassing `frontend` entirely) arrives with a
+`getRemoteAddr()` outside the trusted list and can't spoof its way past this check.
+
+gRPC's listener (`GrpcRateLimitInterceptor`) is intentionally untouched: `frontend/nginx.conf` has
+no `grpc_pass`/proxy block for it, so gRPC traffic reaches the backend directly in this app's
+documented topology and its existing `Grpc.TRANSPORT_ATTR_REMOTE_ADDR`-based keying is already
+correct.
+
+Covered by `ClientIpResolverTest` (unit: real-IP recovery via `X-Forwarded-For`/`X-Real-IP` only
+from a trusted proxy address, first-hop-only parsing, spoofed-header rejection from an untrusted
+caller, malformed-address safety) and two new `RateLimitFilterTest` cases proving the same
+behavior end-to-end through the actual filter (forwarded clients behind the trusted proxy get
+independent buckets; a direct, untrusted caller's spoofed header is ignored and it's limited on its
+own real address instead).

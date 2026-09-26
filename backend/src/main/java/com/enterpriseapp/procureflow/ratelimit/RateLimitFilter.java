@@ -26,6 +26,11 @@ import org.springframework.web.filter.OncePerRequestFilter;
  * <p>The login checks run ahead of body validation, deliberately: a request counts against the
  * limit whether or not its JSON body is well-formed, so a flood of even-malformed login attempts is
  * still throttled rather than reaching {@code AuthController} first.
+ *
+ * <p>Every bucket is keyed via {@link ClientIpResolver}, not raw {@code getRemoteAddr()} - this
+ * app's documented deployment sits behind a reverse proxy (see ADR-0003), so the direct TCP peer is
+ * normally that proxy, not the real caller. See {@link ClientIpResolver} for how the real address
+ * is recovered safely.
  */
 @Component
 public class RateLimitFilter extends OncePerRequestFilter {
@@ -33,12 +38,14 @@ public class RateLimitFilter extends OncePerRequestFilter {
   private static final String LOGIN_PATH = "/api/v1/auth/login";
 
   private final ObjectMapper objectMapper;
+  private final ClientIpResolver clientIpResolver;
   private final KeyedRateLimiter apiPerIp;
   private final KeyedRateLimiter loginPerCredential;
   private final KeyedRateLimiter loginPerIp;
 
   public RateLimitFilter(RateLimitProperties properties, ObjectMapper objectMapper) {
     this.objectMapper = objectMapper;
+    this.clientIpResolver = new ClientIpResolver(properties.getTrustedProxies());
     this.apiPerIp = new KeyedRateLimiter(properties.getApiPerIp());
     this.loginPerCredential = new KeyedRateLimiter(properties.getLoginPerCredential());
     this.loginPerIp = new KeyedRateLimiter(properties.getLoginPerIp());
@@ -48,7 +55,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
   protected void doFilterInternal(
       HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
       throws ServletException, IOException {
-    String ip = request.getRemoteAddr();
+    String ip = clientIpResolver.resolve(request);
 
     if (!apiPerIp.tryConsume(ip)) {
       respondTooManyRequests(request, response);

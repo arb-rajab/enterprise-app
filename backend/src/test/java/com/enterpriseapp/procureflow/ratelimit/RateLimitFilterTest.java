@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import jakarta.servlet.FilterChain;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -105,7 +106,51 @@ class RateLimitFilterTest {
     assertThat(bodySeenDownstream.get()).contains("user@test.local");
   }
 
+  @Test
+  void perIpLimitKeysOnTheForwardedClientIpWhenTheRequestComesFromATrustedProxy() throws Exception {
+    RateLimitFilter filter = newFilter(2, 1000, 1000, List.of("172.28.0.10/32"));
+
+    // Both requests arrive from the trusted proxy's own address, but forward two different real
+    // client IPs - each must get its own independent bucket, keyed on the forwarded address.
+    assertThat(reachesDownstream(filter, forwardedGet("172.28.0.10", "203.0.113.1"))).isTrue();
+    assertThat(reachesDownstream(filter, forwardedGet("172.28.0.10", "203.0.113.1"))).isTrue();
+    assertThat(reachesDownstream(filter, forwardedGet("172.28.0.10", "203.0.113.2"))).isTrue();
+
+    MockHttpServletResponse blocked = new MockHttpServletResponse();
+    filter.doFilter(forwardedGet("172.28.0.10", "203.0.113.1"), blocked, noOpChain());
+    assertThat(blocked.getStatus()).isEqualTo(HttpStatus.TOO_MANY_REQUESTS.value());
+
+    // The second forwarded client still has its own untouched bucket.
+    assertThat(reachesDownstream(filter, forwardedGet("172.28.0.10", "203.0.113.2"))).isTrue();
+  }
+
+  @Test
+  void perIpLimitIgnoresASpoofedForwardedForHeaderFromAnUntrustedDirectCaller() throws Exception {
+    RateLimitFilter filter = newFilter(2, 1000, 1000, List.of("172.28.0.10/32"));
+
+    // The caller connects directly (not from the trusted proxy) and claims to be two different
+    // "clients" via a spoofed header - both must count against the caller's own real IP instead.
+    assertThat(reachesDownstream(filter, forwardedGet("198.51.100.7", "203.0.113.1"))).isTrue();
+    assertThat(reachesDownstream(filter, forwardedGet("198.51.100.7", "203.0.113.2"))).isTrue();
+
+    MockHttpServletResponse blocked = new MockHttpServletResponse();
+    filter.doFilter(forwardedGet("198.51.100.7", "203.0.113.3"), blocked, noOpChain());
+    assertThat(blocked.getStatus()).isEqualTo(HttpStatus.TOO_MANY_REQUESTS.value());
+  }
+
+  private MockHttpServletRequest forwardedGet(String remoteAddr, String forwardedFor) {
+    MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/departments");
+    request.setRemoteAddr(remoteAddr);
+    request.addHeader("X-Forwarded-For", forwardedFor);
+    return request;
+  }
+
   private RateLimitFilter newFilter(int apiCapacity, int loginCredCapacity, int loginIpCapacity) {
+    return newFilter(apiCapacity, loginCredCapacity, loginIpCapacity, List.of());
+  }
+
+  private RateLimitFilter newFilter(
+      int apiCapacity, int loginCredCapacity, int loginIpCapacity, List<String> trustedProxies) {
     RateLimitProperties properties = new RateLimitProperties();
     properties.getApiPerIp().setCapacity(apiCapacity);
     properties.getApiPerIp().setPeriodMinutes(1);
@@ -113,6 +158,7 @@ class RateLimitFilterTest {
     properties.getLoginPerCredential().setPeriodMinutes(1);
     properties.getLoginPerIp().setCapacity(loginIpCapacity);
     properties.getLoginPerIp().setPeriodMinutes(1);
+    properties.setTrustedProxies(trustedProxies);
     return new RateLimitFilter(properties, objectMapper);
   }
 

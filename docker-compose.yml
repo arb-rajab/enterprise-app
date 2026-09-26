@@ -1,3 +1,12 @@
+networks:
+  # Fixed subnet so the backend can pin its rate limiter's trusted-proxy list to the frontend
+  # (nginx) container's address below, rather than trusting Compose's default, unpredictable
+  # bridge subnet - see RATE_LIMIT_TRUSTED_PROXIES on the backend service.
+  procureflow-net:
+    ipam:
+      config:
+        - subnet: 172.28.0.0/24
+
 services:
   postgres:
     image: postgres:16-alpine
@@ -14,6 +23,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    networks:
+      - procureflow-net
 
   # Local, open-source OIDC provider for the SSO login path - see
   # docs/project-memory/adr/0008-oidc-sso-identity-linking.md and keycloak/README.md. Never a
@@ -36,6 +47,8 @@ services:
       timeout: 5s
       retries: 15
       start_period: 30s
+    networks:
+      - procureflow-net
 
   backend:
     build:
@@ -59,6 +72,11 @@ services:
       OIDC_JWKS_URI: http://keycloak:8080/realms/procureflow/protocol/openid-connect/certs
       OIDC_USERINFO_URI: http://keycloak:8080/realms/procureflow/protocol/openid-connect/userinfo
       OIDC_FRONTEND_REDIRECT_URI: http://localhost:8081/sso/callback
+      # Only the frontend (nginx) container's fixed address below may set X-Forwarded-For/
+      # X-Real-IP for the REST rate limiter - see ClientIpResolver and
+      # docs/project-memory/adr/0010-rate-limiting.md. A direct caller on the :8080 mapping below
+      # (bypassing the proxy) is never on this address, so it can't spoof this header.
+      RATE_LIMIT_TRUSTED_PROXIES: 172.28.0.10/32
     ports:
       - '8080:8080'
       - '9090:9090'
@@ -67,6 +85,8 @@ services:
         condition: service_healthy
       keycloak:
         condition: service_healthy
+    networks:
+      - procureflow-net
 
   frontend:
     build:
@@ -75,6 +95,9 @@ services:
       - '8081:8080'
     depends_on:
       - backend
+    networks:
+      procureflow-net:
+        ipv4_address: 172.28.0.10
 
 volumes:
   procureflow-postgres-data:

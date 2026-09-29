@@ -16,13 +16,10 @@ Deferred work, each with the reason it was deferred rather than a bare TODO.
   Needs a real decision (mTLS between services vs. ingress/mesh-terminated TLS in front of port
   9090, and how local/dev still works without either) before implementing, not a rushed
   self-signed-cert patch.
-- **Migrate off Spring Boot 3.3.x.** The whole 3.3 branch is now fully end-of-life for open-source
-  users (confirmed directly against Maven Central - 3.3.13 is the newest version published there);
-  a patch bump within 3.3.x closed the two CVEs flagged in the pass that found this
-  (`06-security.md`), but doesn't put this app back on a branch that keeps receiving open-source
-  security patches. Spring Boot 4.x is a major-version jump with real breaking-change surface
-  (Spring Framework 7 baseline, possible dependency-floor changes) that needs its own dedicated,
-  validated pass - not something to bundle into an unrelated change.
+- **Migrate to Spring Boot 4.x.** The app moved from the end-of-life 3.3.x line to 3.5.x (latest
+  3.x on Maven Central at the time) so the osv-scanner job in `security.yml` could pass; 3.x itself
+  has a bounded support window, so Spring Boot 4.x (Spring Framework 7 baseline, real
+  breaking-change surface) still needs its own dedicated, validated pass.
 - ~~OIDC/SSO federation~~ — done, see `adr/0008-oidc-sso-identity-linking.md`. What's still
   deferred from that work: an **unlink-SSO-identity flow** (there's no way to clear a user's
   `oidc_provider`/`oidc_subject` and force password-only login again), and revisiting the

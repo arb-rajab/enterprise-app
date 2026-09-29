@@ -27,10 +27,18 @@
         <testcontainers.version>1.20.2</testcontainers.version>
         <spotless.version>2.43.0</spotless.version>
         <testcontainers-keycloak.version>3.5.1</testcontainers-keycloak.version>
-        <grpc.version>1.68.1</grpc.version>
+        <grpc.version>1.83.1</grpc.version>
         <protobuf.version>4.28.2</protobuf.version>
         <protobuf-plugin.version>0.6.1</protobuf-plugin.version>
         <bucket4j.version>8.20.0</bucket4j.version>
+        <!-- Overrides of Spring Boot-managed versions, to pick up newer patch releases that close
+             advisories the osv-scanner job flags against Boot 3.5.16's defaults. Drop each one
+             once Boot's own managed version catches up. -->
+        <tomcat.version>10.1.60</tomcat.version>
+        <jackson-bom.version>2.21.7</jackson-bom.version>
+        <postgresql.version>42.7.13</postgresql.version>
+        <commons-lang3.version>3.21.0</commons-lang3.version>
+        <log4j2.version>2.26.1</log4j2.version>
     </properties>
 
     <dependencies>

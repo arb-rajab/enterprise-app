@@ -1,0 +1,47 @@
+# osv-scanner configuration for the "Dependency scan (osv-scanner)" CI job
+# (.github/workflows/security.yml).
+#
+# Every entry is a dated exception, not a permanent suppression: once
+# `ignoreUntil` passes, the finding fails the scan again and a human has to
+# either renew the entry (re-confirming the reason still holds) or delete it
+# (because a fix shipped). Entries are by advisory ID, so any NEW advisory
+# against the same package still fails the scan.
+
+[[IgnoredVulns]]
+id = "GHSA-j9f9-w8pj-32f8"
+ignoreUntil = 2026-11-08
+reason = """
+CVE-2026-47890, Spring Framework SSE stream corruption when rendering view
+fragments (CVSS 9.8). Affects spring-webmvc 6.2.0-6.2.19 and 7.0.0-7.0.8; the
+advisory lists NO fixed version on the 6.2 line (6.2.19 is the newest release on
+Maven Central) and is fixed only in 7.0.9, i.e. Spring Boot 4.0.8 / 4.1.1+.
+Boot 3.5.16 (newest 3.5.x) manages Framework 6.2.19, so no 3.x bump clears it.
+Not reachable here: the backend is a JSON-only REST API (all controllers under
+/api/v1), with no SseEmitter / text/event-stream endpoints, no view fragment
+rendering and no template engine. Fix = Spring Boot 4.0.8+ migration (separate
+PR). Renew or remove before the expiry date.
+"""
+
+[[IgnoredVulns]]
+id = "GHSA-pc63-qcmh-9cmg"
+ignoreUntil = 2026-11-08
+reason = """
+CVE-2026-47884, Spring Framework XsltView SSRF/RCE (CVSS 9.8). Same affected
+range and same "no fix on 6.2, fixed in 7.0.9" situation as GHSA-j9f9-w8pj-32f8.
+Exploitation needs XsltView in a Spring MVC app with a catch-all "/**" mapping
+that renders views; the backend uses no views, no XsltView and no template
+engine (JSON REST controllers only). Fix = Spring Boot 4.0.8+ migration
+(separate PR). Renew or remove before the expiry date.
+"""
+
+[[IgnoredVulns]]
+id = "GHSA-vfj7-8cjw-p6xm"
+ignoreUntil = 2026-11-08
+reason = """
+Stack-exhaustion DoS in braces (deeply nested brace patterns), CVSS 8.7.
+braces 3.0.3 is the latest release and the advisory lists no patched version.
+Reached only as a dev dependency ("dev": true in frontend/package-lock.json)
+through the Angular build/lint/test toolchain, which runs on developer machines
+and CI against repo-controlled glob patterns; not part of the production
+bundle. Renew if still unfixed upstream, remove the entry once a patch ships.
+"""

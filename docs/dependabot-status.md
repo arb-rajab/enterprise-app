@@ -45,3 +45,4 @@ The two Spring Framework advisories (GHSA-j9f9-w8pj-32f8, GHSA-pc63-qcmh-9cmg, `
 
 - Ignored major versions are listed in `.github/dependabot.yml` with the reason for each.
 - Re-check exemptions before their `ignoreUntil` date (2026-11-08) and drop them once upstream fixes ship.
+- Dependabot/code-scanning alert API (2026-10-08): not readable. The proxy-injected `GH_ALERTS_TOKEN` is sent, but `GET /repos/arb-rajab/*/dependabot/alerts` and `/code-scanning/alerts` return 403 "Resource not accessible by integration" on all 12 repos; the token lacks the `vulnerability_alerts` / `security_events` read permissions. Alert state remains unverified.

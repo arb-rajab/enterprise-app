@@ -20,7 +20,7 @@ _Last updated: 2026-10-08. Maintained during the Dependabot clean-up pass; updat
 
 ## Notes
 
-- The backend is on Spring Boot 3.3.x, which is end-of-life; a Spring Boot 4.x migration has been investigated and explicitly deferred by the owner (see `docs/project-memory`), so Dependabot Spring Boot major bumps should be read, not merged blindly.
+- The backend parent is Spring Boot 3.5.x (see `backend/pom.xml`). As of 2026-10-08 osv-scanner reports two critical advisories on `spring-webmvc` 6.2.19 (GHSA-j9f9-w8pj-32f8, GHSA-pc63-qcmh-9cmg) with no fixed version listed; this is awaiting an owner decision (upgrade or a time-limited exemption), so the Dependency scan check is red until then.
 - `security.yml` runs gitleaks, CodeQL and osv-scanner (against a Maven-generated SBOM). There is no `osv-scanner.toml`, so there are no time-limited exemptions in this repo.
 - Formatting is enforced by Spotless in `mvn verify`; Dependabot Java PRs do not touch source files, so this only matters for hand-written fixes.
 

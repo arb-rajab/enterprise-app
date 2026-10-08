@@ -36,6 +36,7 @@ The two Spring Framework advisories (GHSA-j9f9-w8pj-32f8, GHSA-pc63-qcmh-9cmg, `
 - GitHub Actions pins were refreshed by hand on 2026-10-08 (checkout v7, setup-java v6, setup-node v7, upload-artifact v7, buildx v4, build-push v7, codeql-action v4, gitleaks-action v3), matching the other repos. Dependabot was not enabled at the time (see Configuration), so it had not proposed them.
 - `security.yml` runs gitleaks, CodeQL and osv-scanner (against a Maven-generated SBOM plus `frontend/package-lock.json`).
 - Formatting is enforced by Spotless in `mvn verify`; Dependabot Java PRs do not touch source files, so this only matters for hand-written fixes.
+- `.gitleaksignore` (added 2026-10-08 in #43): four fingerprints, all test fixtures (two Keycloak test subject ids in `UserServiceOidcProvisioningTest.java`, and the integration-test JWT secret in `backend/src/test/resources/application.yml` in two commits). The scheduled Security run scans full history and failed on them (run 37304315619); push runs only scan new commits, so they stay green.
 
 ## Deferred (not re-raised each pass)
 

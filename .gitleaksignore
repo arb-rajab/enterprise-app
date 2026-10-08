@@ -1,0 +1,12 @@
+# Known gitleaks false positives, one fingerprint per finding (commit:file:rule:line).
+# The scheduled Security run scans full history, so these fail it every week.
+# Each entry skips that one finding only; anything new still fails the scan.
+
+# Keycloak test subject id passed to findOrProvisionForOidc in a unit test.
+2e2a72edb2cafdb08159ca8f841e7535e5f009cf:backend/src/test/java/com/enterpriseapp/procureflow/user/UserServiceOidcProvisioningTest.java:generic-api-key:49
+# Keycloak test subject id passed to findOrProvisionForOidc in a unit test.
+2e2a72edb2cafdb08159ca8f841e7535e5f009cf:backend/src/test/java/com/enterpriseapp/procureflow/user/UserServiceOidcProvisioningTest.java:generic-api-key:76
+# JWT signing secret for the integration-test profile only (integration-test-signing-secret-...).
+182575929897e145bff4943aa3eba9a78dc7304c:backend/src/test/resources/application.yml:generic-api-key:4
+# JWT signing secret for the integration-test profile only (integration-test-signing-secret-...).
+dcdc01b71f08c179621d6426d0b1100846ac1979:backend/src/test/resources/application.yml:generic-api-key:4

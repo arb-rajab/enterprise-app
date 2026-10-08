@@ -11,16 +11,46 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 10
+    ignore:
+      # Angular packages must move together as a migration (`ng update`); a single
+      # @angular/* or zone.js major bump on its own fails the frontend build.
+      - dependency-name: "@angular/*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "zone.js"
+        update-types: ["version-update:semver-major"]
+      # Angular 20's toolchain targets TypeScript 5.x; TypeScript 7 fails CI.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
+      # ESLint 10 fails the lint step (the lint plugins peer ESLint 9).
+      - dependency-name: "eslint"
+        update-types: ["version-update:semver-major"]
+      # jasmine-core 7 fails the unit tests; @types/jasmine moves with it.
+      - dependency-name: "jasmine-core"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/jasmine"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "docker"
     directory: "/backend"
     schedule:
       interval: "weekly"
+    ignore:
+      # The JDK/JRE major moves deliberately with `java.version` in pom.xml and the CI
+      # JDK, after the test suite has run on it; not as a base-image drive-by bump.
+      - dependency-name: "eclipse-temurin"
+        update-types: ["version-update:semver-major"]
+      # The build image's JDK is tied to the same decision. Its tag already floats
+      # Maven 3.9.x patch releases, so there is nothing else to take from it.
+      - dependency-name: "maven"
 
   - package-ecosystem: "docker"
     directory: "/frontend"
     schedule:
       interval: "weekly"
+    ignore:
+      # Stay on a Node LTS the Angular CLI supports; moves with the Angular migration.
+      - dependency-name: "node"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "github-actions"
     directory: "/"

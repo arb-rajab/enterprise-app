@@ -7,7 +7,8 @@ _Last updated: 2026-10-08. Maintained during the Dependabot clean-up pass; updat
 - Ecosystems covered: maven (`/backend`), npm (`/frontend`), docker (`/backend`, `/frontend`), github-actions (`/`), docker-compose (`/`).
 - Grouping: none (one PR per update; open-PR limit 10 for maven and npm).
 - Schedule: weekly.
-- Ignore rules: docker-compose image majors (stateful services need a deliberate migration).
+- Ignore rules (reasons are in `.github/dependabot.yml`): npm majors of `@angular/*`, `zone.js`, `typescript`, `eslint`, `jasmine-core`, `@types/jasmine`; Docker `eclipse-temurin` majors, the `maven` build image, and `node` majors; docker-compose image majors (stateful services need a deliberate migration).
+- Dependabot version updates were not enabled on this repo until 2026-10-08 (the owner turned them on), which is why no Dependabot PRs, including GitHub Actions bumps, had ever been opened.
 
 ## State at last update
 
@@ -32,7 +33,7 @@ The two Spring Framework advisories (GHSA-j9f9-w8pj-32f8, GHSA-pc63-qcmh-9cmg, `
 - Boot 4.0.8's managed Tomcat 11.0.24 and Jackson (2.21.5 / 3.1.5) carry advisories, so `backend/pom.xml` overrides `tomcat.version` (11.0.26), `jackson-bom.version` (Jackson 3, 3.1.7) and `jackson-2-bom.version` (Jackson 2, 2.21.7), plus `postgresql`, `commons-lang3` and `log4j2`. Drop each override once Boot's managed version catches up.
 - Jackson 2 is still on the classpath only because `jjwt-jackson` needs it; application code uses `tools.jackson` (Jackson 3).
 - Springdoc is on 3.0.3, which targets Boot 4.0.x (3.1.x targets Boot 4.1).
-- GitHub Actions pins were refreshed by hand on 2026-10-08 (checkout v7, setup-java v6, setup-node v7, upload-artifact v7, buildx v4, build-push v7, codeql-action v4, gitleaks-action v3), matching the other repos. The `github-actions` Dependabot entry has no ignore rules but had never opened a PR for these; the cause is not visible with the available tooling, so check Insights -> Dependency graph -> Dependabot for errors in the repo UI.
+- GitHub Actions pins were refreshed by hand on 2026-10-08 (checkout v7, setup-java v6, setup-node v7, upload-artifact v7, buildx v4, build-push v7, codeql-action v4, gitleaks-action v3), matching the other repos. Dependabot was not enabled at the time (see Configuration), so it had not proposed them.
 - `security.yml` runs gitleaks, CodeQL and osv-scanner (against a Maven-generated SBOM plus `frontend/package-lock.json`).
 - Formatting is enforced by Spotless in `mvn verify`; Dependabot Java PRs do not touch source files, so this only matters for hand-written fixes.
 

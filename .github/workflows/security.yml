@@ -81,4 +81,4 @@ jobs:
       - name: Run osv-scanner
         run: |
           docker run --rm -v "$PWD:/src" -w /src ghcr.io/google/osv-scanner:latest \
-            scan source --sbom=backend/target/bom.json --lockfile=frontend/package-lock.json
+            scan source --config=osv-scanner.toml --sbom=backend/target/bom.json --lockfile=frontend/package-lock.json

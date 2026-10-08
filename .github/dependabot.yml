@@ -16,7 +16,11 @@ updates:
       # @angular/* or zone.js major bump on its own fails the frontend build.
       - dependency-name: "@angular/*"
         update-types: ["version-update:semver-major"]
+      # zone.js is 0.x, so Dependabot reports 0.15 -> 0.16 as a "minor" bump: ignore both.
       - dependency-name: "zone.js"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      # angular-eslint tracks the Angular major (22.x needs Angular 22).
+      - dependency-name: "angular-eslint"
         update-types: ["version-update:semver-major"]
       # Angular 20's toolchain targets TypeScript 5.x; TypeScript 7 fails CI.
       - dependency-name: "typescript"

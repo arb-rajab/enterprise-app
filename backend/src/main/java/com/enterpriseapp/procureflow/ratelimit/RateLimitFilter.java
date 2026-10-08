@@ -1,8 +1,6 @@
 package com.enterpriseapp.procureflow.ratelimit;
 
 import com.enterpriseapp.procureflow.common.exception.ApiError;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -15,6 +13,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * Rate limits the REST API: a general per-IP limit on every request (resource-exhaustion protection
@@ -91,8 +91,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
     try {
       JsonNode node = objectMapper.readTree(body);
       JsonNode email = node.get("email");
-      return email != null && email.isTextual() ? email.asText() : null;
-    } catch (IOException | RuntimeException ex) {
+      return email != null && email.isString() ? email.asString() : null;
+    } catch (RuntimeException ex) {
       return null;
     }
   }

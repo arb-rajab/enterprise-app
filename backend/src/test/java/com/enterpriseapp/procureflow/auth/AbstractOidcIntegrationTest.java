@@ -91,7 +91,9 @@ abstract class AbstractOidcIntegrationTest extends AbstractIntegrationTest {
       }
       @SuppressWarnings("unchecked")
       Map<String, Object> body =
-          new com.fasterxml.jackson.databind.ObjectMapper().readValue(response.body(), Map.class);
+          tools.jackson.databind.json.JsonMapper.builder()
+              .build()
+              .readValue(response.body(), Map.class);
       return (String) body.get("id_token");
     } catch (IOException | InterruptedException e) {
       throw new IllegalStateException("Could not fetch a token from the test Keycloak", e);
@@ -109,8 +111,8 @@ abstract class AbstractOidcIntegrationTest extends AbstractIntegrationTest {
     try {
       String payload = jwt.split("\\.")[1];
       byte[] decoded = java.util.Base64.getUrlDecoder().decode(payload);
-      return new com.fasterxml.jackson.databind.ObjectMapper().readValue(decoded, Map.class);
-    } catch (IOException e) {
+      return tools.jackson.databind.json.JsonMapper.builder().build().readValue(decoded, Map.class);
+    } catch (RuntimeException e) {
       throw new IllegalStateException("Could not decode the test id_token", e);
     }
   }

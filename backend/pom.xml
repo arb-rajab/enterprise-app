@@ -29,7 +29,7 @@
         <grpc.version>1.83.1</grpc.version>
         <protobuf.version>4.28.2</protobuf.version>
         <protobuf-plugin.version>0.6.1</protobuf-plugin.version>
-        <bucket4j.version>8.20.0</bucket4j.version>
+        <bucket4j.version>8.21.0</bucket4j.version>
         <!-- Overrides of Spring Boot-managed versions, to pick up newer patch releases that close
              advisories the osv-scanner job flags against Boot 4.0.8's defaults. Drop each one
              once Boot's own managed version catches up. -->

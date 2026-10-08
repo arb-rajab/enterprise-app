@@ -9,7 +9,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.enterpriseapp.procureflow.security.JwtService;
 import com.enterpriseapp.procureflow.user.User;
 import com.enterpriseapp.procureflow.user.UserService;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -17,6 +16,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * The regression proof required by this feature: a JWT-registered user and an OIDC login end up as

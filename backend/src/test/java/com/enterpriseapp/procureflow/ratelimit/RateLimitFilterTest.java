@@ -2,8 +2,6 @@ package com.enterpriseapp.procureflow.ratelimit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import jakarta.servlet.FilterChain;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -15,6 +13,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Unit tests for {@link RateLimitFilter}: the general per-IP limit that now covers the whole REST
@@ -23,7 +23,7 @@ import org.springframework.mock.web.MockHttpServletResponse;
  */
 class RateLimitFilterTest {
 
-  private final ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
+  private final ObjectMapper objectMapper = JsonMapper.builder().build();
 
   @Test
   void blocksRequestsOnceTheGeneralPerIpLimitIsExceeded() throws Exception {

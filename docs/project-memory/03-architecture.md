@@ -4,7 +4,7 @@
 
 ```
 enterprise-app/
-├── backend/                 Spring Boot 3 / Java 21, Maven
+├── backend/                 Spring Boot 4 / Java 21, Maven
 ├── frontend/                Angular 20, standalone components
 ├── docker-compose.yml       Local dev: postgres + backend + frontend
 └── docs/project-memory/     This SDLC documentation set
@@ -130,7 +130,7 @@ backend container. The Angular app therefore never needs to know the backend's r
 hostname/port, and CORS is only a concern for the dev-server case (`app.cors.allowed-origins` in
 `application.yml`), not for the containerized deployment path.
 
-## Why Spring Boot 3 / Java 21 and Angular 20
+## Why Spring Boot 4 / Java 21 and Angular 20
 
 Both are the current LTS/latest-stable major versions as of this project's creation, chosen to
 demonstrate familiarity with current, not legacy, tooling: Java 21 (virtual threads available,

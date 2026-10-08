@@ -13,8 +13,6 @@ import com.enterpriseapp.procureflow.grpc.purchaseorder.v1.PurchaseOrderGrpcServ
 import com.enterpriseapp.procureflow.grpc.purchaseorder.v1.PurchaseOrderGrpcServiceGrpc.PurchaseOrderGrpcServiceBlockingStub;
 import com.enterpriseapp.procureflow.grpc.purchaseorder.v1.PurchaseOrderStatusResponse;
 import com.enterpriseapp.procureflow.support.AbstractIntegrationTest;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.Metadata;
@@ -32,6 +30,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * Proves the gRPC purchase-order API (docs/project-memory/adr/0009-grpc-purchase-order-api.md)

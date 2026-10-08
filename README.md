@@ -16,7 +16,7 @@ amount. See `docs/project-memory/01-brief.md` and `docs/project-memory/adr/0004-
 
 | Layer | Tech |
 | --- | --- |
-| Backend | Spring Boot 3, Java 21, Spring Security (JWT), Spring Data JPA, Flyway |
+| Backend | Spring Boot 4, Java 21, Spring Security (JWT), Spring Data JPA, Flyway |
 | Frontend | Angular 20 (standalone components, signals), Reactive Forms |
 | Database | PostgreSQL 16 |
 | Auth | Stateless JWT + BCrypt (password login), Spring Security OIDC login against a local Keycloak (SSO) |

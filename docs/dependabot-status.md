@@ -14,6 +14,7 @@ _Last updated: 2026-10-08. Maintained during the Dependabot clean-up pass; updat
 
 - Open Dependabot PRs: 0 (each merged or closed only after reading its checks).
 - Default-branch CI: green at last check, including the Dependency scan (with the one exemption below).
+- Last full rescan: 2026-10-08. Checked open PRs, default-branch and scheduled CI, Dependabot update jobs, ecosystem coverage against the manifests in the repo, Actions pins, exemption expiry dates, stray branches, and (new this pass) a local full-history gitleaks 8.28.0 scan. No new gaps. The scheduled Security run's failure (2026-10-05) is covered by `.gitleaksignore`; the local scan is clean with it and finds exactly the four ignored findings without it.
 
 ## Time-limited exemptions
 
@@ -37,6 +38,7 @@ The two Spring Framework advisories (GHSA-j9f9-w8pj-32f8, GHSA-pc63-qcmh-9cmg, `
 - `security.yml` runs gitleaks, CodeQL and osv-scanner (against a Maven-generated SBOM plus `frontend/package-lock.json`).
 - Formatting is enforced by Spotless in `mvn verify`; Dependabot Java PRs do not touch source files, so this only matters for hand-written fixes.
 - `.gitleaksignore` (added 2026-10-08 in #43): four fingerprints, all test fixtures (two Keycloak test subject ids in `UserServiceOidcProvisioningTest.java`, and the integration-test JWT secret in `backend/src/test/resources/application.yml` in two commits). The scheduled Security run scans full history and failed on them (run 37304315619); push runs only scan new commits, so they stay green.
+- Merge policy (deliberate choice by the repo owner, 2026-10-08): every PR, major-version dependency bumps included, is merged as soon as all of its required checks are green, confirmed per PR. This repo is a code showcase with no business or sensitive dependency, so green checks are the only gate. Red, pending or conflicted PRs are fixed or closed instead.
 
 ## Deferred (not re-raised each pass)
 

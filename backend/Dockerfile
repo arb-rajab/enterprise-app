@@ -13,7 +13,7 @@ COPY src ./src
 RUN mvn -B -q package -DskipTests
 
 ### Runtime stage ###
-FROM eclipse-temurin:21-jre-alpine AS runtime
+FROM eclipse-temurin:25-jre-alpine AS runtime
 WORKDIR /app
 
 RUN addgroup -S procureflow && adduser -S procureflow -G procureflow

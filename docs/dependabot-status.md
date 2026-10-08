@@ -38,6 +38,7 @@ The two Spring Framework advisories (GHSA-j9f9-w8pj-32f8, GHSA-pc63-qcmh-9cmg, `
 - `security.yml` runs gitleaks, CodeQL and osv-scanner (against a Maven-generated SBOM plus `frontend/package-lock.json`).
 - Formatting is enforced by Spotless in `mvn verify`; Dependabot Java PRs do not touch source files, so this only matters for hand-written fixes.
 - `.gitleaksignore` (added 2026-10-08 in #43): four fingerprints, all test fixtures (two Keycloak test subject ids in `UserServiceOidcProvisioningTest.java`, and the integration-test JWT secret in `backend/src/test/resources/application.yml` in two commits). The scheduled Security run scans full history and failed on them (run 37304315619); push runs only scan new commits, so they stay green.
+- Every workflow declares a top-level `permissions: contents: read` (added 2026-10-08, rescan cycle 3). Jobs that need more, such as CodeQL's `security-events: write`, declare it at job level.
 - Merge policy (deliberate choice by the repo owner, 2026-10-08): every PR, major-version dependency bumps included, is merged as soon as all of its required checks are green, confirmed per PR. This repo is a code showcase with no business or sensitive dependency, so green checks are the only gate. Red, pending or conflicted PRs are fixed or closed instead.
 
 ## Deferred (not re-raised each pass)

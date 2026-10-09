@@ -75,8 +75,9 @@ public class SecurityConfig {
   @Bean
   @Order(1)
   public SecurityFilterChain oidcFilterChain(HttpSecurity http) throws Exception {
+    // CSRF stays on (Spring's default) here: unlike the API chain, this chain keeps an
+    // HttpSession, and every endpoint it serves is a GET, so enabling it costs nothing.
     http.securityMatcher("/oauth2/**", "/login/**")
-        .csrf(csrf -> csrf.disable())
         .cors(cors -> cors.configurationSource(corsConfigurationSource()))
         .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
         .oauth2Login(
@@ -90,6 +91,8 @@ public class SecurityConfig {
   @Bean
   @Order(2)
   public SecurityFilterChain apiFilterChain(HttpSecurity http) throws Exception {
+    // CSRF is off by design: this chain is stateless and only trusts the Authorization header,
+    // which a browser never attaches to a cross-site request.
     http.csrf(csrf -> csrf.disable())
         .cors(cors -> cors.configurationSource(corsConfigurationSource()))
         .sessionManagement(

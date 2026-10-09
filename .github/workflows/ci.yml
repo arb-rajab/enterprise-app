@@ -18,6 +18,7 @@ jobs:
   backend:
     name: Backend (build, test, lint)
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
     defaults:
       run:
         working-directory: backend
@@ -50,6 +51,7 @@ jobs:
   frontend:
     name: Frontend (build, test, lint)
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
     defaults:
       run:
         working-directory: frontend
@@ -84,6 +86,7 @@ jobs:
   docker:
     name: Docker image builds
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
     needs: [backend, frontend]
     steps:
       - uses: actions/checkout@v7

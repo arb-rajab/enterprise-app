@@ -23,6 +23,8 @@ jobs:
       run:
         working-directory: backend
     steps:
+      - uses: actions/checkout@v7
+
       - name: Pull Docker Hub images through mirror.gcr.io
         # Docker Hub rate-limits anonymous pulls and has outages. As a daemon
         # registry mirror, mirror.gcr.io (Google's cache of popular Docker
@@ -41,8 +43,6 @@ jobs:
           done
           echo "::error::Docker did not pick up the registry mirror"
           exit 1
-
-      - uses: actions/checkout@v7
 
       - name: Set up JDK 21
         uses: actions/setup-java@v6

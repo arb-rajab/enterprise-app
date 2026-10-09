@@ -25,6 +25,25 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - name: Pull Docker Hub images through mirror.gcr.io
+        # Docker Hub rate-limits anonymous pulls and has outages. As a daemon
+        # registry mirror, mirror.gcr.io (Google's cache of popular Docker
+        # Hub images) is tried first and Docker Hub is the fallback on a
+        # cache miss. registry-mirrors is reloadable, so SIGHUP applies it
+        # without stopping service containers.
+        run: |
+          sudo sh -c '[ -s /etc/docker/daemon.json ] || echo "{}" > /etc/docker/daemon.json'
+          sudo cat /etc/docker/daemon.json \
+            | jq '. + {"registry-mirrors": ["https://mirror.gcr.io"]}' > "$RUNNER_TEMP/daemon.json"
+          sudo cp "$RUNNER_TEMP/daemon.json" /etc/docker/daemon.json
+          sudo systemctl reload docker
+          for _ in $(seq 1 15); do
+            docker info --format '{{.RegistryConfig.Mirrors}}' | grep -q mirror.gcr.io && exit 0
+            sleep 1
+          done
+          echo "::error::Docker did not pick up the registry mirror"
+          exit 1
+
       - name: Set up JDK 21
         uses: actions/setup-java@v6
         with:
@@ -93,6 +112,12 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+        with:
+          # BuildKit pulls Dockerfile base images itself, not through the Docker
+          # daemon: mirror.gcr.io first, Docker Hub on a cache miss.
+          buildkitd-config-inline: |
+            [registry."docker.io"]
+              mirrors = ["mirror.gcr.io"]
 
       - name: Build backend image
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0

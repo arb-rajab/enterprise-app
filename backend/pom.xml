@@ -26,7 +26,7 @@
         <springdoc.version>3.1.1</springdoc.version>
         <spotless.version>3.10.3</spotless.version>
         <testcontainers-keycloak.version>4.4.0</testcontainers-keycloak.version>
-        <grpc.version>1.84.0</grpc.version>
+        <grpc.version>1.84.1</grpc.version>
         <protobuf.version>4.36.2</protobuf.version>
         <protobuf-plugin.version>0.6.1</protobuf-plugin.version>
         <bucket4j.version>8.21.0</bucket4j.version>
